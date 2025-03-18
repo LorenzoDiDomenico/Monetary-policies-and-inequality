@@ -1,0 +1,5264 @@
+# Modello AB-SFC - Monetary policies and inequality
+
+library(DescTools)
+library(parallel)
+library(VGAM)
+library(mFilter)
+library(cowplot)
+library(ggplot2)
+library(dineq)
+library(iIneq)
+library(ggridges)
+library(ggjoy)
+library(ggpubr)
+theme_set(theme_pubr())
+
+
+rm(list=ls()) 
+RNGkind(kind = NULL, normal.kind = NULL, sample.kind = "Rejection")
+
+eterogeneita=0 # if = 1 heterogeneity in expectation parameters  
+sceltastocastica=1 
+sceltastocasticaK=1 
+equaldistribution=0 
+illusion=1 # # if = 1, households use the market value of wealth in the consumption function
+householdcompranobond=1 # if = 1 households buy bonds
+householdcompranoequity=1  #if = 1 households but equities
+perc_agg=0.3 # aggregate percentage of wealth held in the form of bonds
+perc_agg_equity=0.3 # aggregate percentage of wealth held in the form of equity
+per_V_det_da_int=-2 # if = 0, h
+
+heterogenity_bond=1 # if = 1, heterogeneity in portfolio preferences 
+heterogenity_equity=1
+centralized_distribution_dividends=1 
+divbank="unequal"
+N=3000 #3600 #2700
+# Grado di disuguaglianza
+n_equality_firms=-2.7
+n_equality_bank=-2.7
+inc=0.3
+k_vector=1 #seq(n_equality_firms+inc,0,inc)
+nsim=3#length(k_vector)
+nsim_uu=1
+
+
+Gini_In_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+Gini_In_post=matrix(data=0,nrow=nsim,ncol=nsim)
+Gini_In_pre_wealth=matrix(data=0,nrow=nsim,ncol=nsim)
+Gini_In_post_wealth=matrix(data=0,nrow=nsim,ncol=nsim)
+ratio_int_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+ratio_int_post=matrix(data=0,nrow=nsim,ncol=nsim)
+ratio_int_pre_wealth=matrix(data=0,nrow=nsim,ncol=nsim)
+ratio_int_post_wealth=matrix(data=0,nrow=nsim,ncol=nsim)
+variations_Gini=matrix(data=0,nrow=nsim,ncol=nsim)
+variations_ratio=matrix(data=0,nrow=nsim,ncol=nsim)
+variations_Gini_wealth=matrix(data=0,nrow=nsim,ncol=nsim)
+variations_ratio_wealth=matrix(data=0,nrow=nsim,ncol=nsim)
+
+
+Theil_index_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+Theil_index_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+Theil_index_L_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+Theil_index_L_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+Atkinson_index_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+Atkinson_index_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+wage_cont_1_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+wage_cont_1_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+divf_cont_1_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+divf_cont_1_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+divB_cont_1_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+divB_cont_1_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+fin_cont_1_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+fin_cont_1_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+wage_cont_2_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+wage_cont_2_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+divf_cont_2_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+divf_cont_2_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+divB_cont_2_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+divB_cont_2_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+fin_cont_2_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+fin_cont_2_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+wage_cont_3_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+wage_cont_3_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+divf_cont_3_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+divf_cont_3_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+divB_cont_3_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+divB_cont_3_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+fin_cont_3_in_pre=matrix(data=0,nrow=nsim,ncol=nsim)
+fin_cont_3_in_post=matrix(data=0,nrow=nsim,ncol=nsim)
+
+
+T=900
+shock=600
+MC=1
+ygeneral=matrix(data=0, nrow=T, ncol=2)
+stockG=matrix(data=0,nrow=T,ncol=2)
+GDPreale=matrix(data=0,nrow=T,ncol=MC)
+debpilgen=matrix(data=0,nrow=T,ncol=2)
+deb_yc=matrix(data=0, nrow=T, ncol=MC)
+yc=matrix(data=0, nrow=T, ncol=MC)
+bank=n_equality_bank
+for(uu in 1:nsim_uu){
+  bank=bank+inc
+  lamba_equity_saved=matrix(data=0, nrow=nsim,ncol=N)
+  GDPdeflated=matrix(data=0, nrow=nsim,ncol=T)
+  prezzi=matrix(data=0, nrow=nsim,ncol=T)
+  markuppi=matrix(data=0, nrow=nsim,ncol=T)
+  wealthca=matrix(data=0, nrow=nsim,ncol=T)
+  wealthwork=matrix(data=0, nrow=nsim,ncol=T)
+  wagesha=matrix(data=0, nrow=nsim,ncol=T)
+  banksh=matrix(data=0, nrow=nsim,ncol=T)
+  indsh=matrix(data=0, nrow=nsim,ncol=T)
+  income_unemp<-array(data=0,dim=c(T,N,nsim))
+  income_pos<-array(data=0,dim=c(T,N,nsim))
+  income_pop<-array(data=0,dim=c(T,N,nsim))
+  income_pop_real<-array(data=0,dim=c(T,N,nsim))
+  financialshare=matrix(data=0, nrow=nsim,ncol=T)
+  Gini_index_income=matrix(data=0, ncol=T,nrow=nsim)
+  Gini_index_wealth=matrix(data=0, ncol=T,nrow=nsim)
+  ratio_int_income=matrix(data=0, ncol=T,nrow=nsim)
+  ratio_in_wealth=matrix(data=0, ncol=T,nrow=nsim)
+  ratiominmax=matrix(data=0, ncol=T,nrow=nsim)
+  ratiominmax2=matrix(data=0, ncol=T,nrow=nsim)
+  Gini_index_income2=matrix(data=0, ncol=T,nrow=nsim)
+  Gini_index_wealth2=matrix(data=0, ncol=T,nrow=nsim)
+  ratio_int_income2=matrix(data=0, ncol=T,nrow=nsim)
+  ratio_in_wealth2=matrix(data=0, ncol=T,nrow=nsim)
+  Gini_index_popol=matrix(data=0, ncol=T,nrow=nsim)
+  ratio_int_popol=matrix(data=0, ncol=T,nrow=nsim)
+  ratiominmax_popol=matrix(data=0, ncol=T,nrow=nsim)
+  Gini_index_popol_wealth=matrix(data=0, ncol=T,nrow=nsim)
+  Gini_pop_index_wealth_market=matrix(data=0, ncol=T,nrow=nsim)
+  ratio_int_popol_wealth=matrix(data=0, ncol=T,nrow=nsim)
+  Fin_ineq=matrix(data=0, ncol=T,nrow=nsim)
+  Dep_ineq=matrix(data=0, ncol=T,nrow=nsim)
+  Bond_ine=matrix(data=0, ncol=T,nrow=nsim)
+  Interdecile_fin=matrix(data=0, ncol=T,nrow=nsim)
+  Interdecil_bond=matrix(data=0, ncol=T,nrow=nsim)
+  Interdecile_equity=matrix(data=0, ncol=T,nrow=nsim)
+  Interdecile_deposits=matrix(data=0, ncol=T,nrow=nsim)
+  Lab_ineq_index=matrix(data=0, ncol=T,nrow=nsim)
+  Div_inequality_index=matrix(data=0, ncol=T,nrow=nsim)
+  Equity_inequality_index=matrix(data=0, ncol=T,nrow=nsim)
+  Theil_index_in=matrix(data=0, ncol=T,nrow=nsim)
+  Theil_index_L_in=matrix(data=0, ncol=T,nrow=nsim)
+  Atkinson_index_in=matrix(data=0, ncol=T,nrow=nsim)
+  wage_cont_1_in=matrix(data=0, ncol=T,nrow=nsim)
+  divf_cont_1_in=matrix(data=0, ncol=T,nrow=nsim)
+  divB_cont_1_in=matrix(data=0, ncol=T,nrow=nsim)
+  fin_cont_1_in=matrix(data=0, ncol=T,nrow=nsim)
+  divE_cont_1_in=matrix(data=0, ncol=T,nrow=nsim)
+  wage_cont_2_in=matrix(data=0, ncol=T,nrow=nsim)
+  divf_cont_2_in=matrix(data=0, ncol=T,nrow=nsim)
+  divB_cont_2_in=matrix(data=0, ncol=T,nrow=nsim)
+  fin_cont_2_in=matrix(data=0, ncol=T,nrow=nsim)
+  wage_cont_3_in=matrix(data=0, ncol=T,nrow=nsim)
+  divf_cont_3_in=matrix(data=0, ncol=T,nrow=nsim)
+  divB_cont_3_in=matrix(data=0, ncol=T,nrow=nsim)
+  fin_cont_3_in=matrix(data=0, ncol=T,nrow=nsim)
+  spesapubb=matrix(data=0, ncol=T,nrow=nsim)
+  spesapubbreal=matrix(data=0, ncol=T,nrow=nsim)
+  propensities_cons=matrix(data=0, ncol=T,nrow=nsim)
+  Vhh=matrix(data=0, ncol=T,nrow=nsim)
+  B_Vhh=matrix(data=0, ncol=T,nrow=nsim)
+  E_Vhh=matrix(data=0, ncol=T,nrow=nsim)
+  CG_Wealth_delay <- array(NA, dim = c(T, N, nsim))
+  CG_Bond_Wealth_delay <- array(NA, dim = c(T, N, nsim))
+  CG_Wealth <- array(NA, dim = c(T, N, nsim))
+  CG_Wealth_market<- array(NA, dim = c(T, N, nsim))
+  CG_Bond_Wealth<- array(NA, dim = c(T, N, nsim))
+  CG_Bond_Wealth_market<- array(NA, dim = c(T, N, nsim))
+  growth_wealth_market<- array(NA, dim = c(T, N, nsim))
+  growth_wealth<- array(NA, dim = c(T, N, nsim))
+  Wealth_array <- array(NA, dim = c(T, N, nsim))
+  Wealth_array_market<- array(NA, dim = c(T, N, nsim))
+  saldoprimo=matrix(data=0, ncol=T,nrow=nsim)
+  debpub_pil=matrix(data=0, ncol=T,nrow=nsim)
+  debpriv_pil=matrix(data=0, ncol=T,nrow=nsim)
+  bondtothousehold=matrix(data=0, ncol=T,nrow=nsim)
+  bondfamiglie=matrix(data=0, ncol=T,nrow=nsim)
+  nominalbondfamiglie=matrix(data=0, ncol=T,nrow=nsim)
+  interestgoverment=matrix(data=0, ncol=T,nrow=nsim)
+  moneydepositHH=matrix(data=0, ncol=T,nrow=nsim)
+  price_equity=matrix(data=0, ncol=T,nrow=nsim)
+  price_bond=matrix(data=0, ncol=T,nrow=nsim)
+  
+  # Parametri per analisi multivariata #####
+  npar=20
+  Nv=1
+  Nphi=1
+  Nx=1
+  Nlim=1
+  Nz=1
+  Ndk=1
+  Nperc=1
+  Nqex=1
+  Nbeta=1
+  Nwgov=1
+  Nflex=1
+  Nint=1
+  Ngpub=1
+  Nparcons=1
+  Nswic=1
+  Numin=1
+  NNF=1
+  nhmese=1
+  nprobex=1
+  ncomb=Nv*Nphi*Nlim*Nz*Ndk*Nperc*Nqex*Nbeta*Nwgov*Nflex*Nint*Ngpub*Nparcons*Nswic*Numin*NNF*nhmese*nprobex*Nx
+  trial=seq(1,ncomb)
+  parametri=matrix(data=0, nrow=ncomb, ncol=npar)
+  dati=matrix(data=0,nrow=1,ncol=(npar-1))
+  datiIn=matrix(data=0,nrow=1,ncol=npar)
+  progval=c(data=0,ncol=npar)
+  dati[1,1]=Nphi
+  dati[1,2]=Nv
+  dati[1,3]=Nlim
+  dati[1,4]=Nz
+  dati[1,5]=Ndk
+  dati[1,6]=Nperc
+  dati[1,7]=Nqex
+  dati[1,8]=Nbeta
+  dati[1,9]=Nwgov
+  dati[1,10]=Nflex
+  dati[1,11]=Nint
+  dati[1,12]=Ngpub
+  dati[1,13]=Nparcons
+  dati[1,14]=Nswic
+  dati[1,15]=Numin
+  dati[1,16]=NNF
+  dati[1,17]=nhmese
+  dati[1,18]=nprobex
+  dati[1,19]=Nx
+  
+  
+  counter=1
+  phivalue=2 #0.25 #0.2
+  datiIn[1,1]=phivalue
+  g_real_in=1020 #720 hmese=0.1
+  for(i in 1:Nphi){
+    progphi=0
+    progval[1]=progphi
+    phivalue=phivalue+progphi
+    vvalue=4# 0.45 #rapporto capitale/lavoro
+    datiIn[1,2]=vvalue
+    for(j in 1:Nv){
+      progv=0
+      progval[2]=progv
+      vvalue=vvalue+progv #  
+      liminfvalue=2000# numero di periodi consecuiti massimo (in cui le scorte sono state sotto al desiderato) oltre il quale si varia il markup
+      limsupvalue=2000# numero di periodi consecuiti massimo (in cui le scorte sono state sopra al desiderato) oltre il quale si varia il markup
+      datiIn[1,3]=liminfvalue
+      datiIn[1,4]=limsupvalue
+      for(h in 1:Nlim){
+        proglim=0
+        progval[3]=proglim
+        progval[4]=proglim
+        liminfvalue=liminfvalue+proglim
+        limsupvalue=limsupvalue+proglim
+        zvalue=25
+        #50 #50#tempo di vita del capitale
+        datiIn[1,5]=zvalue
+        for(gg in 1:Nz){
+          progz=0
+          progval[5]=progz
+          zvalue=zvalue+progz   
+          dkvalue=1#9 #8  #numero periodi per la produzione del bene capitale
+          datiIn[1,6]=dkvalue
+          for(ll in 1:Ndk){
+            progdk=0
+            progval[6]=progdk
+            dkvalue=dkvalue+progdk
+            percvalue=4.2 #perso del settore pubblico
+            datiIn[1,7]=percvalue 
+            for(xx in 1:Nperc){
+              progperc=0
+              progval[7]=progperc
+              percvalue=percvalue+progperc
+              qexvalue=12 #8  #quantit? iniziale attesa dalle imrpese C
+              datiIn[1,8]=qexvalue 
+              for(oo in 1:Nqex){
+                progqex=0
+                progval[8]=progqex
+                qexvalue=qexvalue+progqex
+                betavalue=0.3 #95   #aspettativa adattiva
+                datiIn[1,9]=betavalue 
+                for(ww in 1:Nbeta){
+                  progbeta=0
+                  progval[9]=progbeta
+                  betavalue=betavalue+progbeta
+                  alfawgovvalue=0.1
+                  #0.8 # % del salario di mercato pagato come sussidio disoccupazione dal governo
+                  datiIn[1,10]=alfawgovvalue 
+                  for(ppp in 1:Nwgov){
+                    progwgov=0
+                    progval[10]=progwgov
+                    alfawgovvalue=alfawgovvalue+progwgov
+                    flexvalue=0
+                    datiIn[1,11]=flexvalue 
+                    for(popi in 1:Nflex){
+                      progflex=0
+                      progval[11]=progflex
+                      flexvalue=flexvalue+progflex
+                      
+                      intvalue=0.006  #tasso d'interesse sui titoli 
+                      datiIn[1,12]=intvalue 
+                      for(oio in 1:Nint){
+                        progint=0
+                        progval[12]=progint
+                        intvalue=intvalue+progint
+                        gpubvalue=0 #0.0001 #tasso di crescita della componente di spesa pubblica diretta
+                        datiIn[1,13]=gpubvalue 
+                        for(sos in 1:Ngpub){
+                          proggpub=0 
+                          progval[13]=proggpub
+                          gpubvalue=gpubvalue+proggpub  
+                          
+                          parmatchingconsvalue=10  #numero di imprese visionate da ogni consumatore, per secegliere da chi comprare
+                          datiIn[1,14]=parmatchingconsvalue
+                          for(eia in 1:Nparcons){
+                            progparcons=0
+                            progval[14]=progparcons
+                            parmatchingconsvalue=parmatchingconsvalue+progparcons  
+                            
+                            swicvalue=0.91#elasticit? rispetto ai differenziali di prezzo 
+                            datiIn[1,15]=swicvalue
+                            for(eiu in 1:Nswic){
+                              progswic=0
+                              progval[15]=progswic
+                              swicvalue=swicvalue+progswic          
+                              
+                              uminvalue=0.45 #0.45  # percentuale del grado di utilizzo normale, utilizzata per decidere se cambiare markup o meno
+                              datiIn[1,16]=uminvalue 
+                              for(kok in 1:Numin){
+                                progumin=0
+                                progval[16]=progumin
+                                uminvalue=uminvalue+progumin
+                                
+                                NF=200 #300 #695 # 350 #120 #-10
+                                for(dop in 1:NNF){
+                                  progNF=0  #15
+                                  progval[17]=progNF
+                                  NF=NF+progNF
+                                  
+                                  hmese=0.14
+                                  for(uui in 1:nhmese){
+                                    proghmese=0
+                                    progval[18]=proghmese
+                                    hmese=hmese+proghmese
+                                    
+                                    probex=0.5
+                                    for(rtu in 1:nprobex){
+                                      progprobex=0
+                                      progval[19]=progprobex
+                                      probex=probex+progprobex  
+                                      
+                                      xval=2 #1
+                                      for(uio in 1:Nx){
+                                        progxval=0
+                                        progval[20]=progxval
+                                        xval=xval+progxval
+                                        parametri[counter,1]=phivalue
+                                        parametri[counter,2]=vvalue
+                                        parametri[counter,3]=liminfvalue
+                                        parametri[counter,4]=limsupvalue
+                                        parametri[counter,5]=zvalue
+                                        parametri[counter,6]=dkvalue
+                                        parametri[counter,7]=percvalue
+                                        parametri[counter,8]=qexvalue
+                                        parametri[counter,9]=betavalue
+                                        parametri[counter,10]=alfawgovvalue
+                                        parametri[counter,11]=flexvalue
+                                        parametri[counter,12]=intvalue
+                                        parametri[counter,13]=gpubvalue
+                                        parametri[counter,14]=parmatchingconsvalue
+                                        parametri[counter,15]=swicvalue
+                                        parametri[counter,16]=uminvalue
+                                        parametri[counter,17]=NF
+                                        parametri[counter,18]=hmese
+                                        parametri[counter,19]=probex
+                                        parametri[counter,20]=xval
+                                        
+                                        counter=counter+1
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }}
+          }
+        }
+      }
+    }
+  }
+  #parametri[1,17]=2
+  
+  #n_equality_firms=-3
+  #n_equality_bank=-3
+  #ff<-function(trial){
+  change=-0.1
+  #change_equality=0.4
+  # hmese=0.5
+  if(heterogenity_bond==1){
+    aug_bond=perc_agg+0.06
+  }else{
+    aug_bond=perc_agg   
+  }
+  
+  if(heterogenity_equity==1){
+    aug_equity=perc_agg_equity+0.06
+  }else{
+    aug_equity=perc_agg_equity
+  }
+  tpub=40  
+  for(jj in 1:nsim){
+    
+    
+    if(heterogenity_bond==1){
+      aug_bond=aug_bond-0.06
+    }else{
+      aug_bond=aug_bond  
+    }
+    if(heterogenity_equity==1){
+      aug_equity=aug_equity-0.06
+    }else{
+      aug_equity=aug_equity
+    }
+    
+    #if(uu==1){
+    n_equality_firms=-1.8
+    n_equality_bank=-1.8#  -1.8
+    #  }else if(uu==2){
+    #    n_equality_firms=0
+    #    n_equality_bank=n_equality_bank+1 
+    #  }else{
+    #    n_equality_firms=n_equality_firms+1  
+    #    n_equality_bank=0
+    #  }
+    
+    #for(trial in 1:ncomb){
+    conditionbasket=0
+    vin="no"   #vincolo di bilancio settore pubblico
+    #MONTE CARLO 
+    result=matrix(data=0,nrow=T,ncol=1)
+    
+    
+    #NUMBER OF HOUSHOLDS
+    
+    
+    NF=parametri[trial,17]
+    #NUMBER OF Consumer FIRMS 
+    NFC=round(0.72*NF,0)  #0.72
+    #NUMBER OF CAPITAL GOODS FRIMS
+    NFK=NF-NFC
+    
+    perc10=ceiling(NFC*0.1)
+    perc30=ceiling(NFC*0.2)
+    perc60=ceiling(NFC*0.6)
+    
+    
+    espe=0
+    conta=1
+    xvalue=parametri[trial,20] 
+    wg=c(0.1,0.2,0.3,0.4)    
+    epsi=0.4   
+    sens=0 
+    UN=0.9 
+    
+    
+    ualfa=matrix(data=0, nrow=NF)
+    alfa=matrix(data=0, nrow=NF)
+    beta=matrix(data=0, nrow=NF)
+    if(eterogeneita==1){
+      stocasp=abs(rfoldnorm(NF,mean=parametri[trial,9],sd=0.02))
+      ualfa=stocasp
+      alfa=stocasp
+      beta=stocasp
+    }else{
+      ualfa[]=parametri[trial,9]
+      alfa[]=parametri[trial,9]
+      beta[]=parametri[trial,9]
+    }
+    beta1=parametri[trial,9]
+    #Taylor Rule 
+    inflazionetarget=0.002 
+    inttarget=0.01  
+    t1=0.1 
+    t2=0.9 
+    t3=0.01 
+    
+    vincolo=0.02
+    phi=parametri[trial,1]
+    v=parametri[trial,2]
+    
+    
+    if(NF>2){
+      limiteinvdec=parametri[trial,3]
+      limiteinvinc=parametri[trial,4]
+    }else{
+      limiteinvdec=3000
+      limiteinvinc=3000
+    }
+    z=parametri[trial,5] 
+    dk=parametri[trial,6]
+    de=dk
+
+    flexsigma=parametri[trial,11]
+    sigmavalue=0.07 
+    perc=parametri[trial,7]
+    cworker=0.6 
+    ccap=0.6
+    
+    cupw=cworker
+    cdownw=cworker
+    
+    cupcap=ccap
+    cdowncap=ccap
+    
+    
+    #propensione al consuo sui risparmi dei lavoratori
+    cworkercash=0.05 
+    #propensioneal consumo sui risparmi dei capitlasti 
+    ccapcash=0.05
+    #produttivit? del singolo bene capitale
+    xexogenous=xvalue
+    #LABOR PRODUCTIVITY uguale per tutte le imprese
+    #quota di capitale ordinata su quello teoricamente necessario per soddisfare la domanda attesa al livello normale
+    gamma=1 
+    #aspettativa adattiva
+    bas=0.8 #0.7 #0.7 #se ? uguale ad uno non considero il paniere s
+    
+    
+    #RATIO DELLE INVENTORIES
+    sigma=sigmavalue
+    # grado di utilizzo normale della capacit? produttiva esogeno
+    u_n=0.8
+    umin=parametri[trial,16]
+    # markup iniziale nei due settori
+    markupc=0.5 #0.0000000000000001
+    markupk=0.5 #0.0000000000000001
+    mk=matrix(data=0.4, nrow=T)
+    
+    #probabilit? di cambiare fornitore di beni di consumo-> al diminuire di questo numero la probabilit? aumenta
+    #swic=parametri[trial,15]
+    e=2.71828
+    #durata del bene capitale e dei prestiti long term
+    #durata short term loand
+    zs=1#10
+    #durata titoli pubblici
+    # tpub=10
+    #durata prestito overdraft
+    zp=15
+    
+    #h lavoro massime che ogni lavoratore pu? lavorare in ogni periodo 
+    hmese=parametri[trial,18]
+    # tasso d'interesse sui prestiti lungo termine
+    exintrate=parametri[trial,12] #0.0008
+    # tasso d'interesse sui prestiti breve termine (prestiti per finanziare i salari)
+    exintrateshort=parametri[trial,12]
+    # tassi d'interesse sui depositi
+    exintdep=parametri[trial,12]
+    exintpub=parametri[trial,12]
+    l_equity=per_V_det_da_int
+    gamma_e=exintpub/0.12 #0.17 dover+bbe essere il rendimento dell'equity
+    
+    # tasso d'interesse overdraft
+    exintrateoverdraft=0
+    # numero massimo di periodi consecutivi dove si ? insolventi e si chiede un prestito per rimbordare i prestiti e pagare gli interessi precedenti
+    limponzi=5
+    startingponzi=1
+    #leverage desiderato
+    lev_net=0.7 #0.5 #se ? 0, vuol dire che l'impresa finch? pu? si autofinanzia tutto il possibile
+    lev_w=0
+    eta=0  # in realt? non serve 
+    teta=1#percentuale distribuita dei profitti realizzati 
+    percG=perc
+    gpub=parametri[trial,13]
+    tauwork=0.2#15 #tassa sui?l reddito dei lavoratori
+    taucap=0.2 #35 #tassa sul reddito dei  capitalisti
+    tau=0.4
+    limrestr=1
+    creditlim=1
+    tcredito=3000
+    tcrunch=10
+    zcredit=5
+    spamcredit=0
+    for (i in 1:z){
+      spamcredit=spamcredit+i/zcredit
+    }
+    intcredit=exintdep
+    xintcredit=intcredit*spamcredit/(1+intcredit*spamcredit)
+    
+    # fattore moltiplicativo per il calcolo dell'ammortamento (sarebbe (a) nella tesi)
+    spam=0
+    for (i in 1:z){
+      spam=spam+i/z
+    }
+    
+    # fattore moltiplicativo per calcolo ammortamento comprensivo del debito e oneri finanziari (sarebbe (b) nellta tesi)
+    spam2=0
+    g=1
+    cr=1
+    for(i in 1:z){
+      spam2=spam2+cr/(z*spam)
+      g=g+1
+      cr=cr+g
+    }
+    
+    # fattore moltiplicativo per il prestito a breve periodo
+    spamshort=0
+    for (i in 1:zs){
+      spamshort=spamshort+i/zs
+    }
+    
+    # fattore moltiplicatotivo per overdraft
+    spamoverdraft=0
+    for (i in 1:zp){
+      spamoverdraft=spamoverdraft+i/zp
+    }
+    
+    
+    limlabor=10
+    interazionilim=150  #numero massimo di volte che il consumatore effettua il processo di scelta dell'impresa quando quella precedentemente scelta non ha scorte a sufficienza per soddisfare il suo consumo desiderato 
+    parmatchingconsumption=parametri[trial,14]
+    parmatchingcapital=10  #numero di imprese K visistate dalle imprese C per scgliere il fornitore
+    
+    if(NF==2){
+      parmatchingconsumption=1
+      parmatchingcapital=1
+    }
+    
+    #salario per unit? di lavoro 
+    wageExogenous=2000  # il salario effettivo diventa wageExogenous/hmese
+    alfawgovvalue=parametri[trial,10]
+    
+    
+    #NFCmax=round(parametri[ncomb,17]*0.72,0)
+    
+    #domanda esogna attesa per il primo periodo imprese consumer -> per avere che la quantit? aggregata inizialmetne prodotta non varia al variare del numero delle imprese e con essa la domanda dello stato
+    #domanda esogena attesa primo periodo imprese capital
+    #pc=wageExogenous/xexogenous*(1/v+(1+markupk)/(u_n*spam*phi))*(1+markupc)
+    
+    #prezzo inizale dei due beni
+    
+    pk=wageExogenous/phi*(1+markupk)
+    pc=wageExogenous/xexogenous*((1+exintrateshort*spamshort)/v+(1+markupk)*(1+exintrate*spam2)/(u_n*spam*phi))*(1+markupc) #questo e' il prezzo in caso di tasso di deprezzamento decrescente (deprezzamento assoluto a parit? di capitale costante).. comq va aggiunto il tasso d interesse
+    unitcostc=wageExogenous/xexogenous*((1+exintrateshort*spamshort)/v+(1+markupk)*(1+exintrate*spam2)/(u_n*spam*phi))
+    unitcostk=wageExogenous/phi
+    Gin=g_real_in*pc    #percG*qexogenousc*NFC*pc
+    qexogenousc=g_real_in/NFC   #parametri[trial,8]/NFC
+    quin=qexogenousc
+    # dotazione iniziale di capitale delle imprese C (uguale per tutte, tutte si attendono la stessa quantit? nel primo periodo)-> questo valroe vale solo se il periodo di produzioen del bene capitale ? uguale ad uno
+    kin=(quin*(1+sigma))/(xexogenous*u_n)
+    
+    #determinazione swic
+    probex=parametri[trial,19]
+    mediaran=1.0000001
+    sdran=0.000005
+    pop=matrix(data=0, nrow=100)
+    for(i in 1:100){
+      pop[i]=abs(rfoldnorm(1,mean=mediaran,sd=sdran)-1)
+    }
+    val=mean(pop)
+    
+    mmin=markupc*(1-val)
+    swic=log(probex)*unitcostc*(1+mmin)/(unitcostc*(1+mmin)-pc)
+    mmin=markupk*(1-val)
+    swicK=log(probex)*unitcostk*(1+mmin)/(unitcostk*(1+mmin)-pk)
+    
+    
+    
+    
+    # livello della spesa iniziale del governo
+    
+    # contatore dei fallimenti
+    nbancarottac=0
+    nbancarottak=0
+    
+    #delta=0.05
+    #MARKUP MINMO
+    markupmin=0.01
+    # numero di imprese scelte casualmente per fare il matching
+    
+    #codice settore
+    cod=matrix(data=0, ncol=NF)
+    for(i in 1:NF){
+      if(i<=NFK){
+        cod[i]=0
+      }else{
+        cod[i]=1
+      }}
+    #numero capitalisti
+    Ncap=NF
+    #numero lavoratori
+    Nwork=N-Ncap
+    #q_c=(N-Nwork*q_l)/Ncap
+    #Q_firm=N/NF
+    
+    xxx=seq(1,N,1)
+    aa=1/(sum(xxx^(-n_equality_firms)))
+    share_H=aa*xxx^(-n_equality_firms)
+    #share_H=sort(share_H)
+    
+    bb=1/(sum(xxx^(-n_equality_bank)))
+    share_B=bb*xxx^(-n_equality_bank)
+    share_tot=share_B+share_H
+    
+    l_00_l=matrix(data=0, ncol=N)
+    l_10_l=matrix(data=0, ncol=N)
+    l_20_l=matrix(data=0, ncol=N)
+    
+    l_01_l=matrix(data=0, ncol=N)
+    l_11_l=matrix(data=0, ncol=N)
+    l_21_l=matrix(data=0, ncol=N)
+    
+    l_02_l=matrix(data=0, ncol=N)
+    l_12_l=matrix(data=0, ncol=N)
+    l_22_l=matrix(data=0, ncol=N)
+    
+    l_03_l=matrix(data=0, ncol=N)
+    l_04_l=matrix(data=0, ncol=N)
+    l_13_l=matrix(data=0, ncol=N)
+    l_14_l=matrix(data=0, ncol=N)
+    l_23_l=matrix(data=0, ncol=N)
+    l_24_l=matrix(data=0, ncol=N)
+    
+    
+    # aug_bond=0.2 #alfa - deve essere minore di perc_agg, all'aumentare di alfa diminuisce la varianza o le'eterogeneità della sitribuzione
+    
+    stock=sum(share_tot)
+    ma=matrix(data=0, nrow=N,ncol=N)
+    for(i in 1:N){
+      ma[i,i]=1
+    }
+    ma=cbind(ma,-share_tot)
+    vecsh=c(share_tot,0)
+    ma=rbind(ma,vecsh)
+    bbc=c(rep(aug_bond,N),perc_agg*stock)
+    lambdaz=solve(ma,bbc)
+    
+    if(length(which(lambdaz[1:N]<0))>0){
+      print("problem lambda bond definition 1")
+      stop()
+    }
+    if(length(which(lambdaz[1:N]>1))>0){
+      print("problem lambda bond definition 2")
+      stop()
+    }
+    
+    bbc=c(rep(aug_equity,N),perc_agg_equity*stock)
+    lambdaz_equity=solve(ma,bbc)
+    
+    if(length(which(lambdaz_equity[1:N]<0))>0){
+      print("problem lambda equity definition")
+      stop()
+    }
+    if(length(which(lambdaz_equity[1:N]>1))>0){
+      print("problem lambda equity definition")
+      stop()
+    }
+    
+    
+    
+    #aug_bond=1 #percentuale di aumento del lambda per il primo della lista (il piu ricco)
+    for(i in 1:N){
+      
+      #Protafoglio dei lavoratori
+      if(householdcompranobond==1){
+        l_00_l[i]=lambdaz[i]    #min(0.15*(1+share_tot[i]*aug_bond/share_tot[1]),1)
+      }else{
+        l_00_l[i]=0 
+      }
+      if(householdcompranoequity==1){
+        l_10_l[i]=lambdaz_equity[i]}else{
+          l_10_l[i]=0  
+        }
+      l_20_l[i]=1-l_10_l[i]-l_00_l[i]
+      
+      # coefficiente del tasso sui depositi 
+      if(householdcompranobond==1){
+        l_01_l[i]=0}else{
+          l_01_l[i]=0  
+        }
+      if(householdcompranoequity==1){
+        l_11_l[i]=0
+      }else{
+        l_11_l[i]=0  
+      } 
+      l_21_l[i]=-(l_01_l[i]+l_11_l[i])
+      #Coefficiente del retur on-equity
+      if(householdcompranoequity==1 && householdcompranobond==1){
+        l_02_l[i]=l_equity}else{
+          l_02_l[i]=0 
+        }
+      l_22_l[i]=l_11_l[i]  
+      l_12_l[i]=-(l_22_l[i]+l_02_l[i])  
+      
+      # coefficiente bond
+      l_13_l[i]=l_02_l[i]            
+      l_23_l[i]=l_01_l[i]    
+      l_03_l[i]=-(l_02_l[i]+l_01_l[i])         
+      
+      #coefficiente reddito
+      l_04_l[i]=0
+      l_14_l[i]=0
+      l_24_l[i]=-(l_04_l[i]+l_14_l[i])
+      
+      
+      M_port=rbind(c(l_00_l[i],l_01_l[i],l_02_l[i],l_03_l[i],l_04_l[i]),c(l_10_l[i],l_11_l[i],l_12_l[i],l_13_l[i],l_14_l[i]),c(l_20_l[i],l_21_l[i],l_22_l[i],l_23_l[i],l_24_l[i]))
+      if(i==1){
+        MATS<-list(M_port)
+      }else{
+        MATS[[i]]<-M_port
+      }
+      #Check symmetry contraints
+      if(l_01_l[i]==l_23_l[i]){
+        
+      }else{
+        print("simmetriy_portfolioworker_problem1")
+        stop()
+      }
+      if(l_02_l[i]==l_13_l[i]){
+        
+      }else{
+        print("simmetriy_portfolioworker_problem2")
+        stop()
+        
+      }
+      if(l_11_l[i]==l_22_l[i]){}else{  
+        print("simmetriy_portfolioworker_problem3")
+        stop()
+        
+      }
+    }
+    
+    
+    
+    if((all.equal(sum(share_H), 1))==FALSE){
+      
+      print("problemshareH")
+      stop()
+    }
+    
+    if((all.equal(sum(share_B), 1))==FALSE){
+      print("problemshareB")
+      stop()
+    }
+    #codice classe: lavoratore o capitalista
+    codclass=matrix(data=0, ncol=N)
+    for(i in 1:N){
+      if(i<=Nwork){
+        codclass[i]=0
+      }else{
+        codclass[i]=1
+      }}
+    #assegnazione capitalisti a impresa:questo vale se Ncap ? maggiore di NF (in caso contrario bisogna fare formula inversa: assegnare i capitalisti alle imrpese)
+    #distribuzione uniform
+    capitalistindexF=matrix(data=0, ncol=N)
+    
+    capperfirm=Ncap/NF
+    contatore=0
+    firm=1
+    for(i in (Nwork+1):N){
+      contatore=contatore+1
+      capitalistindexF[i]=firm
+      if(contatore==capperfirm){
+        firm=firm+1
+        contatore=0
+      }
+      
+    }
+    
+    
+    workperfirm=Nwork/NF
+    contatore=0
+    firm=1
+    for(i in 1:Nwork){
+      contatore=contatore+1
+      capitalistindexF[i]=firm
+      if(contatore==workperfirm){
+        firm=firm+1
+        contatore=0
+      }
+      
+    }
+    
+    if(workperfirm %% 1 != 0 ){
+      print("Poblem! cambiare numero agenti o imprese")
+      # stop()
+    }
+    
+    if(capperfirm  %% 1 != 0 ){
+      print("Poblem! cambiare numero agenti o imprese")
+      #  stop()
+    }
+    
+    
+    #WAGES
+    
+    #tasso d interesse esogeno
+    
+    #DATAFRAME WHERE STORING MC SYNTHETIC RESULTS
+    MC=1
+    #THE MONTE CARLO LOOP
+    for (mc in 1:MC) {
+      #SET THE SEED
+      mc=12
+      set.seed(mc)
+      
+      #Dichiarazione variabili ##########
+      if(TRUE){
+        #DEFINE THE DATAFRAME OF RESULTS
+        # BALANCE SHEET
+        namesSectors=c("HOUSEHOLDS","FIRMSK","FIRMSC","BANKS","GOVERNMENT","CB","SUM")
+        namesStocks=c("Deposits","Advances","Loans","Credit_Cons","Nonperforming_Cons","Inventories","Fixed Capital","Bond","HPM","Equity","Net Worth","SUM")
+        data<-data.frame(matrix(0,ncol=length(namesSectors),nrow=length(namesStocks)))
+        BS<-array(data=0,dim=c(length(namesStocks),length(namesSectors),T),dimnames=list(namesStocks,namesSectors))
+        colnames(BS)=namesSectors
+        
+        # TRANSACTION MATRIX
+        
+        namesSectors=c("HOUSEHOLDS","FIRMSK","FIRMSC","BANKS","GOVERNMENT","CB","SUM")
+        namesAssets=c("Consumption","Investments","GovExp","UnBenefit","Tax","Wages","Div_H","Div_E","Div_B","Recapital","IntOnLoans&ov","IntCreditConsumption","InterestDeposit","InterestHb","InterestAdv","ProfitCB","InterestBond","deltadepositi","deltaloan","deltacreditCons","deltaBond","deltanonperforming","deltaAdvances","deltaHb","deltaEquity","SUM","Capital_gains_bond (memo)")
+        data<-data.frame(matrix(0,ncol=length(namesSectors),nrow=length(namesAssets)))
+        TM<-array(data=0,dim=c(length(namesAssets),length(namesSectors),T),dimnames=list(namesAssets,namesSectors))
+        colnames(TM)=namesSectors
+        rownames(TM)=namesAssets
+        Bond_over_wealth=matrix(data=0,nrow=T)
+        Equity_over_wealth=matrix(data=0,nrow=T)
+        WealthHH=matrix(data=0,nrow=T)
+        WealthHHff=matrix(data=0,nrow=T)
+        bondfamiglietot=matrix(data=0,nrow=T)
+        pbond=matrix(data=0,nrow=T)
+        Theil_index=matrix(data=0,nrow=T)
+        Theil_index_L=matrix(data=0,nrow=T)
+        Atkinson_index=matrix(data=0,nrow=T)
+        wage_cont_1=matrix(data=0,nrow=T)
+        divf_cont_1=matrix(data=0,nrow=T)
+        divB_cont_1=matrix(data=0,nrow=T)
+        divE_cont_1=matrix(data=0,nrow=T)
+        fin_cont_1=matrix(data=0,nrow=T)
+        wage_cont_2=matrix(data=0,nrow=T)
+        divf_cont_2=matrix(data=0,nrow=T)
+        divB_cont_2=matrix(data=0,nrow=T)
+        fin_cont_2=matrix(data=0,nrow=T)
+        wage_cont_3=matrix(data=0,nrow=T)
+        divf_cont_3=matrix(data=0,nrow=T)
+        divB_cont_3=matrix(data=0,nrow=T)
+        fin_cont_3=matrix(data=0,nrow=T)
+        c_h=matrix(data=0, nrow=T,ncol=N)
+        Gini_pop=matrix(data=0,nrow=T)
+        ratio_int_pop_wealth=matrix(data=0,nrow=T)
+        Gini_pop_wealth=matrix(data=0,nrow=T)
+        Gini_pop_wealth_market=matrix(data=0,nrow=T)
+        Gini_bond=matrix(data=0,nrow=T)
+        Gini_deposits=matrix(data=0,nrow=T)
+        Gini_financial=matrix(data=0,nrow=T)
+        labor_inequality=matrix(data=0,nrow=T)
+        div_E_inequality=matrix(data=0,nrow=T)
+        Equity_inequality=matrix(data=0,nrow=T)
+        
+        intratio_deposits=matrix(data=0,nrow=T)
+        intratio_equity=matrix(data=0,nrow=T)
+        intratio_bonds=matrix(data=0,nrow=T)
+        intratio_financial=matrix(data=0,nrow=T)
+        
+        
+        
+        
+        ratio_int_pop=matrix(data=0,nrow=T)
+        ratio_min_max_pop=matrix(data=0,nrow=T)
+        ratio_min_max=matrix(data=0,nrow=T)
+        ratio_min_max2=matrix(data=0,nrow=T)
+        Gini_index_in=matrix(data=0,nrow=T)
+        Gini_index_w=matrix(data=0,nrow=T)
+        ratio_int_w=matrix(data=0,nrow=T)
+        ratio_int_in=matrix(data=0,nrow=T)
+        Gini_index_in2=matrix(data=0,nrow=T)
+        Gini_index_w2=matrix(data=0,nrow=T)
+        ratio_int_w2=matrix(data=0,nrow=T)
+        ratio_int_in2=matrix(data=0,nrow=T)
+        income=matrix(data=0,nrow=T,ncol=N)
+        wealth=matrix(data=0,nrow=T,ncol=N)
+        div_B=matrix(data=0,nrow=T,ncol=N)
+        div_tot_F=matrix(data=0,nrow=T)
+        DivK=matrix(data=0,nrow=T)
+        DivC=matrix(data=0,nrow=T)
+        divperworkB=matrix(data=0,nrow=T)
+        rate_of_profit=matrix(data=0,nrow=T)
+        lev_equity_gross=matrix(data=0,nrow=T+z,ncol=NF)
+        wighted_leverage_equity=matrix(data=0,nrow=T,ncol=NF)
+        lev_equitystorico=matrix(data=0,nrow=T+z,ncol=NF)
+        storicoIN_loan=matrix(data=0,nrow=T+z,ncol=NF)
+        ammortamento_profit=matrix(data=0,nrow=T,ncol=NF)
+        kvalue_used=matrix(data=0,nrow=T,ncol=NF)
+        BondDemand_tot=matrix(data=0,nrow=T)
+        leveragestorico=matrix(data=0,nrow=T+z,ncol=NF)
+        wighted_leverage=matrix(data=0,nrow=T,ncol=NF)
+        EquityH=matrix(data=0,nrow=T,ncol=N)
+        Fondodaequity=matrix(data=0,nrow=T,ncol=NF)
+        div_to_E=matrix(data=0,nrow=T,ncol=NF)
+        div_to_H=matrix(data=0,nrow=T,ncol=NF)
+        div_H=matrix(data=0,nrow=T,ncol=N)
+        div_E=matrix(data=0,nrow=T,ncol=N)
+        propensities=matrix(data=0,nrow=T)
+        div_E_tot=matrix(data=0,nrow=T)
+        share_E_H=matrix(data=0,nrow=T,ncol=N)
+        share_new_equity=matrix(data=0,nrow=T,ncol=N)
+        equities_tot_new=matrix(data=0,nrow=T)
+        r_ex_equity=matrix(data=0,nrow=T)
+        r_equity=matrix(data=0,nrow=T)
+        Ed=matrix(data=0,nrow=T,ncol=N)
+        Md=matrix(data=0,nrow=T,ncol=N)
+        LoansHH=matrix(data=0,nrow=T,ncol=N)
+        weigth_bond=matrix(data=0,nrow=T,ncol=N)
+        Esupply=matrix(data=0,nrow=T,ncol=NF)
+        E_supply_tot=matrix(data=0,nrow=T)
+        E_supply_tot_abs=matrix(data=0,nrow=T)
+        E_demand_tot=matrix(data=0,nrow=T)
+        weigth_equities=matrix(data=0,nrow=T,ncol=N)
+        weigth_E=matrix(data=0,nrow=T,ncol=NF)
+        p_e=matrix(data=0,nrow=T)
+        equities_tot=matrix(data=0,nrow=T)
+        E_received_tot=matrix(data=0,nrow=T)
+        E_received=matrix(data=0,nrow=T,ncol=NF)
+        equities_F=matrix(data=0,nrow=T,ncol=NF)
+        equities=matrix(data=0,nrow=T,ncol=N)
+        equities2=matrix(data=0,nrow=T,ncol=N)
+        E_tot=matrix(data=0,nrow=T)
+        
+        retained_profit_cum=matrix(data=0,nrow=T,ncol=NF)
+        retained_profit=matrix(data=0,nrow=T,ncol=NF)
+        scoperto=matrix(data=0,nrow=T,ncol=NF)
+        Cweight=matrix(data=0, nrow=T)
+        Investmentwight=matrix(data=0, nrow=T)
+        investmentwight2=matrix(data=0, nrow=T)
+        Gweigth=matrix(data=0, nrow=T)
+        totrealconsdemand=matrix(data=0, nrow=T)
+        totmissing=matrix(data=0, nrow=T)
+        meanratio=matrix(data=0, nrow=T)
+        Greal=matrix(data=0, nrow=T)
+        Greal1=matrix(data=0, nrow=T)
+        unsatisfieddemand=matrix(data=0, nrow=T)
+        ratio=matrix(data=0, nrow=T, ncol=NF)
+        percY=matrix(data=0, nrow=T, ncol=N)
+        percV=matrix(data=0, nrow=T, ncol=N)
+        Vreal=matrix(data=0, nrow=T, ncol=N)
+        Gweigth=matrix(data=0, nrow=T)
+        perc_Ub=matrix(data=0, nrow=T)
+        perc_G=matrix(data=0, nrow=T)
+        Gtot=matrix(data=0, nrow=T)
+        Gtot_real=matrix(data=0, nrow=T)
+        SpesaconsentitaGU=matrix(data=0, nrow=T)
+        Deficitconsentito=matrix(data=0, nrow=T)
+        DeficitProg=matrix(data=0, nrow=T)
+        control=matrix(data=0, nrow=T)
+        AdvB=matrix(data=0, nrow=T)
+        deltaRes=matrix(data=0, nrow=T)
+        #calcolo rembursement credit
+        deltanonperformingcredit=matrix(data=0, nrow=T)
+        nintcredit=matrix(data=0, ncol=N)
+        creditconsumptionB=matrix(data=0, nrow=T)
+        Bankcreditinterest=matrix(data=0, nrow=T)
+        nonperformingloanbank=matrix(data=0, nrow=T)
+        intratecredit=matrix(data=intcredit, nrow=T)
+        ratacredit=matrix(data=0, nrow=T+zcredit, ncol=N)
+        ratacredittot=matrix(data=0, nrow=T+zcredit, ncol=N)
+        hhdebt=matrix(data=0, nrow=T, ncol=N)
+        capitalhh=matrix(data=0, nrow=T, ncol=N)
+        effectivepaymentB=matrix(data=0, nrow=T, ncol=N)
+        creditinterestpayment=matrix(data=0, nrow=T, ncol=N)
+        crunch=matrix(data=0, nrow=T, ncol=N)
+        restr=matrix(data=0,ncol=N)
+        clim=matrix(data=0, ncol=N)
+        inthh=matrix(data=0, nrow=T, ncol=N)
+        creditdemand=matrix(data=0, nrow=T, ncol=N)
+        newcreditdemandshock=matrix(data=0, nrow=T, ncol=N)
+        newcreditdemand=matrix(data=0, nrow=T, ncol=N)
+        nonperformingloanhh=matrix(data=0, nrow=T, ncol=N)
+        deltaD=matrix(data=0, nrow=T)
+        cashB=matrix(data=0, nrow=T)
+        weighties=matrix(data=0, nrow=T, ncol=N)
+        uefuturo=matrix(data=0, nrow=T, ncol=NF)
+        ue_pesati_aggregatebigs=matrix(data=0, nrow=T, ncol=NF)
+        uefuturo_aggregatebigs=matrix(data=0, nrow=T)
+        realconsumptionmissing=matrix(data=0, nrow=T, ncol=N)
+        u_med=matrix(data=0,nrow=T,ncol=NF)
+        totrealconsumption_des=matrix(data=0, nrow=T, ncol=N)
+        ccappost=matrix(data=0,nrow=T)
+        cwpost=matrix(data=0,nrow=T)
+        consumptionemployed=matrix(data=0,nrow=T)
+        yhdemployed=matrix(data=0,nrow=T)
+        pastbaskettotworkers=matrix(data=0,nrow=T)
+        pastbaskettotcapitalists=matrix(data=0,nrow=T)
+        def_yc=matrix(data=0,nrow=T)
+        #deb_yc=matrix(data=0,nrow=T)
+        gex=matrix(data=0,nrow=T,ncol=NF)
+        gr=matrix(data=0,nrow=T,ncol=NF)
+        u_medio=matrix(data=0, nrow=T, ncol=NF)
+        g_yc=matrix(data=0,nrow=T)
+        realvalueyhd=matrix(data=0, nrow=T, ncol=N)
+        pastbasket=matrix(data=0, nrow=T, ncol=N)
+        invtotC=matrix(data=0,nrow=T)
+        privatedebt_pil=matrix(data=0,nrow=T)
+        percbondcap=matrix(data=0,nrow=T)
+        percbondCB=matrix(data=0,nrow=T)
+        TotdebtF=matrix(data=0,nrow=T)
+        alfak=matrix(data=0, nrow=T, ncol=NF)
+        #INITIAL CONDITIONS
+        invlimsup=matrix(data=0, nrow=T, ncol=NF)
+        invliminf=matrix(data=0, nrow=T, ncol=NF)
+        #MARKUP
+        markup=matrix(data = 0, nrow=T, ncol = NF)
+        #wages
+        w = matrix(data = 0, ncol = N)
+        wage=matrix(data=0,nrow=T,ncol=N)
+        #costi unitari senza overhead?
+        #costi unitari con hoverhead (calcolato al pieno utilizzo del singolo macchinario--> poi posso calcolarlo anche in base al grado di utilizzo normale)
+        #come calcolo il costo medio del capitale dal momento che ogni volta che ne compro di nuovo il prezzo ? diverso?
+        inter=matrix(data=0, nrow=T, ncol=N)
+        GDPreal=matrix(data=0, nrow=T)
+        #yc=matrix(data=0, nrow=T)
+        u_raggregate=matrix(data=0, nrow=T)
+        u_raggregatebigs=matrix(data=0, nrow=T)
+        u_raggregatesmall=matrix(data=0, nrow=T)
+        u_raggregatemedium=matrix(data=0, nrow=T)
+        
+        unitcost=matrix(data=0, nrow=T, ncol=NF)
+        p=matrix(data=0, nrow=T, ncol=NF)
+        pfloor=matrix(data=0, nrow=T, ncol=NF)
+        pcup=matrix(data=0, nrow=T, ncol=NF)
+        k_used=matrix(data=0, nrow=T, ncol=NF)
+        #interestrate
+        intratedeposit=matrix(data=exintdep, nrow=T)
+        intrate=matrix(data=exintrate, nrow=T)
+        intrateshort=matrix(data=exintrateshort, nrow=T)
+        intrateoverdraft=matrix(data=exintrateoverdraft, nrow=T)
+        #produttivit? della singola unit? di capitale 
+        x=matrix(data=0, ncol= NF)
+        #dotazione di capiale delle imprese consumer
+        k=matrix(data=0,nrow=T,ncol=NF)
+        kvalue=matrix(data=0,nrow=T,ncol=NF)
+        kvalue2=matrix(data=0,nrow=T,ncol=NF)
+        kvalue2_noint=matrix(data=0,nrow=T,ncol=NF)
+        #capitale utilizzato nei periodo passati, media ponderata mobile
+        k_sign=matrix(data=0,nrow=T,ncol=NF)
+        #domanda attesa
+        q_e=matrix(data=0, nrow=T, ncol=NF)
+        #quantit? desiderata in corrispondenza del grado di utilizzo normDDDale
+        q_dn=matrix(data=0, nrow=T,ncol=NF)
+        #produzione desiderata
+        y_d=matrix(data=0,nrow=T, ncol=NF)
+        #produzione in corrsipondenza del grado di utilizzo normale
+        y_n=matrix(data=0, nrow=T, ncol=NF)
+        #numero di lavoratori necessari in corrsipondenza del grado di utilizzo normale
+        l_n=matrix(data=0,nrow=T, ncol=NF)
+        #grado di utilizzo vincolato dalla manczanza di forza lavoro (non succede mai, ma bisogna mettercelo)
+        u_l=matrix(data=0, nrow=T, ncol=NF)
+        #grado di utilizzo realizzato
+        u_r=matrix(data=0,nrow=T, ncol=NF)
+        #produzione (potrebbero esserci dei colli di bottiglia: lavoro o capitale)
+        y=matrix(data=0,nrow=T,ncol=NF)
+        
+        #   realyhworkers=matrix(data=0,nrow=T)
+        #   realyhcapitalist=matrix(data=0,nrow=T)
+        BondHHtot=matrix(data=0, nrow=T)
+        Vmarket=matrix(data=0, nrow=T,ncol=N)
+        profitshare=matrix(data=0, nrow=T)
+        bankshare=matrix(data=0, nrow=T)
+        industrialshare=matrix(data=0, nrow=T)
+        wageshare=matrix(data=0, nrow=T)
+        consumptioncapitalist=matrix(data=0, nrow=T)
+        consumptionworkers=matrix(data=0, nrow=T)
+        
+        nint=matrix(data=0,ncol=N)
+        deltareal=matrix(data=0, nrow=T,ncol=N)
+        #capitale desiderato totale
+        k_de=matrix(data=0,nrow=T,ncol=NF)
+        #domanda di capitali, ossia di investimenti
+        kd=matrix(data=0, nrow=T, ncol=NF)
+        cap_depreciated=matrix(data=0, nrow=T, ncol=NF)
+        cap_depreciated_value_int=matrix(data=0, nrow=T, ncol=NF)
+        cap_depreciated_value_noint=matrix(data=0, nrow=T, ncol=NF)
+        perc_net=matrix(data=0, nrow=T, ncol=NF)
+        
+        kdfeasible=matrix(data=0, nrow=T, ncol=NF)
+        #
+        kdfeasiblenominal=matrix(data=0, nrow=T+dk, ncol=NF)
+        kdfeasiblenominal_net=matrix(data=0, nrow=T+dk, ncol=NF)
+        kdfeasiblenominal_net2=matrix(data=0, nrow=T+dk, ncol=NF)
+        kdfeasiblenominal_net3=matrix(data=0, nrow=T+dk, ncol=NF)
+        
+        #labor necessario
+        lrequired=matrix(data=0,nrow=T, ncol=NF)
+        
+        lhrequired=matrix(data=0,nrow=T, ncol=NF)
+        
+        lperwork=matrix(data=0,nrow=T, ncol=NF)
+        #labor demand
+        labordemand=matrix(data=0,nrow=T,ncol=NF)
+        #
+        labordemandproblem=matrix(data=0, ncol=NF)
+        #
+        consumptiondemand=matrix(data=0, ncol=N)
+        #
+        realconsumptiondemand=matrix(data=0, nrow=T,ncol =N)
+        #
+        nominalconsumptiondemand=matrix(data=0, nrow=T,ncol =N)
+        nominalconsumptionexpenditure=matrix(data=0, nrow=T, ncol=N)
+        #
+        residualconsumpiondemand=matrix(data=0, ncol=N)
+        #
+        residualnominalconsumptiondemand=matrix(data=0, ncol=N)
+        bancarotta=matrix(data=0,nrow=T, ncol=NF)
+        
+        nominalresidualconsumptiondemand=matrix(data=0, ncol=N)
+        #nominalconsumptiondemand=matrix(data=0, ncol=N)
+        
+        #
+        residualcapitaldemand=matrix(data=0,ncol=NF)
+        indexC=matrix(data=NA,nrow=T, ncol=N)
+        controllo=matrix(data=0, nrow=T)
+        
+        #domanda di beni capitali per ogni impresa che li producie
+        demandperfirmcapital=matrix(data=0,nrow=T, ncol=NF)
+        #domanda di beni per imprese consumer
+        demandperfirmconsumer=matrix(data=0, nrow=T, ncol=NF)
+        demandperfirmconsumer_sign=matrix(data=0, nrow=T, ncol=NF)
+        #revenues
+        revenues=matrix(data=0,nrow=T+dk, ncol=NF)
+        # gradi di utilizzo atteso in base alla proframmazione fissata
+        ue=matrix(data=0, nrow=T,ncol=NF)
+        #cinvolo capacit? massima: grado di utizzo minimo tra il massimo e quello derivante dalla programmazione
+        ue_f=matrix(data=0,nrow=T, ncol=NF)
+        #vendite reali
+        realsails=matrix(data=0,nrow=T+dk, ncol=NF)
+        #costi correnti
+        currentcost=matrix(data=0, ncol=NF)
+        currentcost_profit=matrix(data=0, ncol=NF)
+        #verifica supply
+        esaurimento=matrix(data=2, ncol=NF)
+        esaurimentoK=matrix(data=2, ncol=NF)
+        situaindexF=matrix(data=0, ncol=N)
+        situaindexFK=matrix(data=2, ncol=NF)
+        Iinstalled=matrix(data=0, nrow=T, ncol=NF)
+        Iinstallednominal=matrix(data=0, nrow=T,ncol=NF)
+        Iinstallednominal_noint=matrix(data=0, nrow=T,ncol=NF)
+        indexCapital=matrix(data=0, ncol=NF)
+        ponzi=matrix(data=0,nrow=T, ncol=NF)
+        indexFK=matrix(data=NA, nrow=T, ncol=NF)
+        interestdepositpayB=matrix(data=0, nrow=T)
+        
+        #storicoordini=matrix(data=0, nrow=T+dk-1, ncol=NF)
+        storicoprezzo=matrix(data=0, nrow=T+dk-1, ncol=NF)
+        #kstoricoordinatonominal=matrix(data=0, nrow=T+dk-1, ncol=NF)
+        #kstoricoordinato=matrix(data=0, nrow=T+dk-1, ncol=NF)
+        #ordinitot=matrix(data=0,nrow=T,ncol=NF)
+        kfutinstorico=matrix(data=0, nrow=T+dk+z,ncol=NF)
+        kfutinstorico_nominal=matrix(data=0, nrow=T+dk+z,ncol=NF)
+        kfutinstorico_nominal_interest=matrix(data=0, nrow=T+dk+z,ncol=NF)
+        y_old=matrix(data=0, nrow=T, ncol=NF)
+        y_new=matrix(data=0, nrow=T, ncol=NF)
+        kdordinatofeasible=matrix(data=0, nrow=T, ncol=NF)
+        kdordinatofeasiblestorico=matrix(data=0, nrow=T+dk, ncol=NF)
+        kdordinatofeasiblenominalstorico=matrix(data=0, nrow=T+dk, ncol=NF)
+        kdordinatofeasiblenominalstorico_noint=matrix(data=0, nrow=T+dk, ncol=NF)
+        kdordinatofeasiblenominalstorico_loan=matrix(data=0, nrow=T+dk, ncol=NF)
+        storicoordinifeasible=matrix(data=0, nrow=T+dk-1, ncol=NF)
+        sails=matrix(data=0, nrow=T+dk, ncol=NF)
+        capfuturo=matrix(data=0,nrow=T,ncol=NF)
+        capfuturo_value=matrix(data=0,nrow=T,ncol=NF)
+        capfuturo_value_noint=matrix(data=0,nrow=T,ncol=NF)
+        nponzi=matrix(data=0, ncol=NF)
+        ammresiduo=matrix(data=0, nrow=T, ncol=NF)
+        Residualvalue=matrix(data=0, nrow=T, ncol=NF)
+        NW=matrix(data=0, nrow=T, ncol=NF)
+        #FIRM'S INVENTORIES
+        inv=matrix(data = 0, nrow=T,ncol=NF)
+        inv_cont=matrix(data = 0, nrow=T,ncol=NF)
+        invt=matrix(data = 0, nrow=T,ncol=NF)
+        valueinv=matrix(data = 0, nrow=T,ncol=NF)
+        valueinv2=matrix(data = 0, nrow=T,ncol=NF)
+        deltainv2=matrix(data = 0, nrow=T,ncol=NF)
+        #HOUSHOLDS' CASH
+        cashH = matrix(data = 0, ncol = N)
+        #FIRMS' CASH
+        cashF= matrix(data = 0,nrow=T, ncol = NF)
+        #HOUSEHOLDS EMPLOYMENT CONDITION: 1=UNEMPLOYED 0=EMPLOYED
+        unemp = matrix(data = 1, ncol = N)
+        unemp2 = matrix(data = 1, nrow=T, ncol = N)
+        
+        #FIRMS' EMPLOYEES NUMBER
+        employees = matrix(data = 0,nrow=T, ncol = NF)
+        
+        #HOUSHOLDS' EMPLOYER INDEXES
+        employer = matrix (data = 0, ncol = N)
+        #FIRMS' WAGE BILL
+        wb = matrix(data = 0,nrow=T, ncol = NF)
+        
+        #HOUSHOLDS' GROSS INCOME
+        #yH = matrix(data = 0, nrow=T, ncol = N)
+        # FIRMS LOAND DEMAND
+        servicedebtFtot=matrix(data=0, nrow=T, ncol=NF)
+        servidebtcapital=matrix(data=0, nrow=T, ncol=NF)
+        interestpaymentF=matrix(data=0, nrow=T, ncol=NF)
+        profitB=matrix(data=0, nrow=T)
+        divB=matrix(data=0, nrow=T)
+        storicorata=matrix(data=0, nrow=z+T+1, ncol=NF)
+        loandemandF=matrix(data = 0,nrow=T+1, ncol=NF)
+        ponzis=matrix(data=0, nrow=T, ncol=NF)
+        stockdebtF=matrix(data=0,nrow=T, ncol=NF)
+        stockdebtFcapital=matrix(data=0,nrow=T, ncol=NF)
+        servicedebtF=matrix(data=0,nrow=T, ncol=NF)
+        div=matrix(data=0, nrow=T,ncol=NF)
+        profit=matrix(data=0,nrow=T, ncol=NF)
+        profit_fe=matrix(data=0,nrow=T, ncol=NF)
+        loanstoricoF=matrix(data=0, nrow=z+T+dk, ncol=NF)
+        storicoI=matrix(data=0, nrow=z+T, ncol=NF)
+        storicoIN=matrix(data=0, nrow=z+T, ncol=NF)
+        storicoIN_noint=matrix(data=0, nrow=z+T, ncol=NF)
+        ammortamento=matrix(data=0,nrow=T, ncol=NF)
+        ammortamento_futuro=matrix(data=0,nrow=T, ncol=NF)
+        storicoammortamentinominal=matrix(data=0, nrow=2*z+T, ncol=NF)
+        #prezziario storico dei capitali installati -> serve per il calcolo dell'ammortamento
+        pstorico=matrix(data=0, nrow=T+z, ncol=NF)
+        #dividendi distribuiti da ogni impresa su ogni singolo capitalista
+        # divpercap=matrix(data=0, ncol=NF)
+        # divpercapB=matrix(data=0, nrow=T)
+        #STOCKLOAN FIRMS'
+        #stockdebtF = matrix(data = 0, ncol = NF)
+        #market share
+        marketshare=matrix(data=0, nrow=T,ncol=NF)
+        mshare_medium=matrix(data=0, nrow=T,ncol=NF)
+        mshare_medium[1,(NFK+1):NF]=1/NFC
+        ratiomarketshare=matrix(data=0, nrow=T, ncol=NF)
+        indexF=matrix(data=NA, ncol=N)
+        unitcostlabor=matrix(data=0, nrow = T, ncol=NF)
+        priceweightedC=matrix(data=0, ncol=NF)
+        priceweightedK=matrix(data=0, ncol=NF)
+        markupweightedC=matrix(data=0, ncol=NF)
+        markupweightedK=matrix(data=0, ncol=NF)
+        
+        interestdepositworker=matrix(data=0, nrow=T)
+        capacitygrowthrate=matrix(data=0, nrow=T)
+        realconsumptiongrowthrate=matrix(data=0, nrow=T)
+        ratiocapconsgrowthrate=matrix(data=0, nrow=T)
+        totrealconsumption=matrix(data=0, nrow=T,ncol=N)
+        totrealconsumption_sign=matrix(data=0, nrow=T,ncol=N)
+        G=matrix(data=0, nrow=T)
+        C=matrix(data=0, nrow=T)
+        Gr=matrix(data=0, nrow=T)
+        Ubenefit=matrix(data=0, nrow=T)
+        Ubenefitantes=matrix(data=0, nrow=T)
+        Tax=matrix(data=0, nrow=T)
+        bond=matrix(data=0, nrow=T)
+        pubdebt=matrix(data=0, nrow=T)
+        debpil=matrix(data=0, nrow=T)
+        debpilreal=matrix(data=0, nrow=T)
+        private_debpil=matrix(data=0, nrow=T)
+        deficitG=matrix(data=0, nrow=T)
+        Def_Pil2=matrix(data=0, nrow=T)
+        Def_Pil=matrix(data=0, nrow=T)
+        storicoratashort=matrix(data=0, nrow=T+zs+1,ncol=NF)
+        storicoshortloandemandF=matrix(data=0, nrow=T+zs+1,ncol=NF)
+        pubintratestorico=matrix(data=0, nrow=tpub+T+1)
+        taxpayment=matrix(data=0, nrow=T, ncol=N)
+        VG=matrix(data=0, nrow=T)
+        interestBondHH=matrix(data=0, nrow=T, ncol=N)
+        dissavingcap=matrix(data=0, nrow=T, ncol=N)
+        Gef=matrix(data=0,nrow=T)
+        Gcons=matrix(data=0,nrow=T)
+        Gfinito=matrix(data=0, nrow=T)
+        #GDPrealC=matrix(data=0, nrow=T)
+        limalzare=matrix(data=0,nrow=T, ncol=NF)
+        limabbassare=matrix(data=0,nrow=T, ncol=NF)
+        riservedes=matrix(data=0,nrow=T, ncol=NF)
+        risreali=matrix(data=0,nrow=T, ncol=NF)
+        cashavailablefunding=matrix(data=0,nrow=T, ncol=NF)
+        loandes=matrix(data=0,nrow=T, ncol=NF)
+        loandesw=matrix(data=0,nrow=T, ncol=NF)
+        StockLoanB=matrix(data=0,nrow=T)
+        LoanBDemand=matrix(data=0,nrow=T)
+        CFB=matrix(data=0,nrow=T)
+        Advances=matrix(data=0,nrow=T)
+        Advances2=matrix(data=0,nrow=T)
+        deltaDeposit=matrix(data=0,nrow=T)
+        deltaDeposit2=matrix(data=0,nrow=T)
+        Deposit=matrix(data=0,nrow=T)
+        overdraftdemand=matrix(data=0,nrow=T, ncol=NF)    
+        storicooverdtraft=matrix(data=0,nrow=T+zp+1, ncol=NF)
+        storicorataoverdraft=matrix(data=0,nrow=T+zp+1, ncol=NF)
+        storicobondoverdraft=matrix(data=0, nrow=T+tpub)
+        bondoverdraft=matrix(data=0,nrow=T)
+        NWB=matrix(data=0, nrow=T)
+        ChG=matrix(data=0, nrow=T)
+        stockdebtG=matrix(data=0, nrow=T)
+        HPM=matrix(data=0, nrow=T)
+        deltaAssetatCB=matrix(data=0, nrow=T)
+        servicericapital=matrix(data=0,nrow=T, ncol=NF) 
+        #THE SIMULATION LOOP
+        restituzioneparziale=matrix(data=0,nrow=T, ncol=NF) 
+        PerditaB=matrix(data=0, nrow=T)
+        deltaAdvances=matrix(data=0, nrow=T)
+        NWG=matrix(data=0,nrow=T)
+        NWCB=matrix(data=0, nrow=T)
+        ReservesCB=matrix(data=0, nrow=T)
+        
+        leveragew=matrix(data=0, nrow=T,ncol=NF)
+        leverage_gross=matrix(data=0, nrow=T,ncol=NF)
+        
+        
+        loanstoricoFtot=matrix(data=0, nrow=T+z+dk, ncol=NF)
+        storicoINfull=matrix(data=0, nrow=z+T, ncol=NF)
+        ammortamentofull=matrix(data=0, nrow=T, ncol=NF)
+        Iinstallednominalfull=matrix(data=0, nrow=T, ncol=NF)
+        kdordinatofeasiblenominalstoricofull=matrix(data=0, nrow=T+dk, ncol=NF)
+        shortloandemandF=matrix(data=0, nrow=T, ncol=NF)
+        y_cap=matrix(data=0, nrow=T)
+        y_work=matrix(data=0, nrow=T)
+        y_hw=matrix(data=0, nrow=T)
+        y_hcap=matrix(data=0, nrow=T)
+        C_w=matrix(data=0, nrow=T)
+        C_cap=matrix(data=0, nrow=T)
+        Moneydeposit_worker=matrix(data=0, nrow=T)
+        Moneydeposit_cap=matrix(data=0, nrow=T)
+        V_cap=matrix(data=0, nrow=T)
+        V_worker=matrix(data=0, nrow=T)
+        Liquidityend=matrix(data=0, nrow=T, ncol=N)
+        #Liquidityend_worker=matrix(data=0, nrow=T)
+        qd=matrix(data=0, nrow=T)
+        realconsumptiondemandwork=matrix(data=0, nrow=T)
+        realconsumptiondemandcap=matrix(data=0, nrow=T)
+        Cef_w=matrix(data=0, nrow=T)
+        Cef_cap=matrix(data=0, nrow=T)
+        Vef=matrix(data=0, nrow=T, ncol=N)
+        bondinterest=matrix(data=0, nrow=T)
+        BondHHnominal=matrix(data=0, nrow=T, ncol=N)
+        BondDemand=matrix(data=0, nrow=T, ncol=N)
+        newbondHH=matrix(data=0, nrow=T, ncol=N)
+        n_bondscadenzaHH=matrix(data=0, nrow=T+tpub, ncol=N)
+        n_bondHH=matrix(data=0, nrow=T, ncol=N)
+        BondHH=matrix(data=0, nrow=T, ncol=N)
+        capitalgainsHH=matrix(data=0, nrow=T, ncol=N)
+        capitalgainsbond=matrix(data=0, nrow=T, ncol=N)
+        capitalgainsHH_on_wealth=matrix(data=0, nrow=T, ncol=N)
+        capitalgainsHH_on_wealth_market=matrix(data=0, nrow=T, ncol=N)
+        g_wealth_market=matrix(data=0, nrow=T, ncol=N)
+        g_wealth=matrix(data=0, nrow=T, ncol=N)
+        capitalgains_bond_on_wealth=matrix(data=0, nrow=T, ncol=N)
+        capitalgains_bond_on_wealth_market=matrix(data=0, nrow=T, ncol=N)
+        capitalgains_bond_on_wealth_delay=matrix(data=0, nrow=T, ncol=N)
+        capitalgainsHH_on_wealth_delay=matrix(data=0, nrow=T, ncol=N)
+        BondDemand_cap=matrix(data=0, nrow=T)
+        New_equity_purchasable=matrix(data=0, nrow=T, ncol=N)
+        share_positive_eq=matrix(data=0, nrow=T, ncol=N)
+        BondRepayed=matrix(data=0, nrow=T, ncol=N)
+        bondrepayment=matrix(data=0, nrow=T)
+        bond=matrix(data=0, nrow=T)
+        new_n_bond=matrix(data=0, nrow=T)
+        n_bondscadenza=matrix(data=0, nrow=T)
+        n_bond=matrix(data=0, nrow=T)
+        bondstorico=matrix(data=0, nrow=T+tpub)
+        bondstoricoCB=matrix(data=0, nrow=T+tpub)
+        bondstoricoHH=matrix(data=0, nrow=T+tpub,ncol=N)
+        nominalvaluebondHH=matrix(data=0, nrow=T+tpub,ncol=N)
+        bondscadenza=matrix(data=0, nrow=T+tpub)
+        interestpaymentG=matrix(data=0, nrow=T)
+        ProfitCB=matrix(data=0, nrow=T)
+        saldoprimario=matrix(data=0, nrow=T)
+        saldosecondario=matrix(data=0, nrow=T)
+        interestBond_CB=matrix(data=0, nrow=T)
+        advanceinterest=matrix(data=0, nrow=T)
+        totalnominalvaluebondHH=matrix(data=0, nrow=T)
+        dinero=matrix(data=0, nrow=T,ncol=N)
+        redundant=matrix(data=0, nrow=T)
+        redundant2=matrix(data=0, nrow=T)
+        NWCB=matrix(data=0, nrow=T)
+        NWG=matrix(data=0, nrow=T)
+        
+        #  NW_cap=matrix(data=0, nrow=T)
+        # NW_workers=matrix(data=0, nrow=T)
+        deltaH=matrix(data=0, nrow=T)
+        BondCB=matrix(data=0, nrow=T)
+        n_bondscadenzaCB=matrix(data=0, nrow=T)
+        newbondCB=matrix(data=0, nrow=T)
+        n_bondCB=matrix(data=0, nrow=T)
+        BuyBond_CB=matrix(data=0, nrow=T)
+        BondRepayed_CB=matrix(data=0, nrow=T)
+        bondscadenzaCB=matrix(data=0, nrow=T+tpub)
+        bondscadenzaHH=matrix(data=0, nrow=T+tpub,ncol=N)
+        Hb=matrix(data=0, nrow=T)
+        Hb2=matrix(data=0, nrow=T)
+        Deposit2=matrix(data=0, nrow=T)
+        cashHcapmoment=matrix(data=0, nrow=T)
+        cashHwmoment=matrix(data=0, nrow=T)
+        cashG=matrix(data=0, nrow=T)
+        shortloandemandF=matrix(data=0, nrow=T, ncol=NF)
+        # taxpaymentcap=matrix(data=0, nrow=T)
+        #taxpaymentworker=matrix(data=0, nrow=T)
+        moneydeposit=matrix(data=0, nrow=T, ncol=N)
+        V=matrix(data=0, nrow=T, ncol=N)
+        yh=matrix(data=0, nrow=T, ncol=N)
+        fin_income=matrix(data=0, nrow=T, ncol=N)
+        fin_income_tot=matrix(data=0, nro=T)
+        yhd=matrix(data=0, nrow=T, ncol=N)
+        bondtoprivate=matrix(data=0, nrow=T)
+        
+        storicovaluesails=matrix(data=0, nrow=T+dk, ncol=NF)
+        contrevenues=matrix(data=0, nrow=T+dk, ncol=NF)
+        contsails=matrix(data=0, nrow=T, ncol=NF)
+        storicosales=matrix(data=0, nrow=T+dk, ncol=NF)
+        
+        lwork=matrix(data=0,nrow=T,ncol=N)
+        
+        priceindexC=matrix(data=0, nrow=T)
+        markupindexC=matrix(data=0, nrow=T)
+        markupindexK=matrix(data=0, nrow=T)
+        priceindexK=matrix(data=0, nrow=T)
+        
+        GDP=matrix(data=0,nrow=T)
+        InvestmentR=matrix(data=0,nrow=T)
+        #Consumption=matrix(data=0,nrow=T)
+        Unemployment=matrix(data=0,nrow=T)
+        Employeestot=matrix(data=0,nrow=T)
+        EmployeesC=matrix(data=0,nrow=T)
+        EmployeesK=matrix(data=0,nrow=T)
+        Investmentvalue=matrix(data=0,nrow=T)
+        Consumptionhh=matrix(data=0,nrow=T)
+        prov=matrix(data=0,nrow=dk,ncol=NF)
+        provfull=matrix(data=0,nrow=dk,ncol=NF)
+        #DOTAZIONI INIZIALI
+        storicofuturo=matrix(data=0, nrow=dk+z)
+        Installare=matrix(data=0, nrow=dk)
+        Installarenominale=matrix(data=0, nrow=dk)
+        
+        y_valorek=matrix(data=0, nrow=T, ncol=NF)
+        y_oldvalore=matrix(data=0, nrow=T, ncol=NF)
+        
+        Nonemp=matrix(data=0, nrow=T)
+        U=matrix(data=0, nrow=T)
+        Une=matrix(data=0, nrow=T)
+        wageaggregate=matrix(data=0, nrow=T)
+        wgov=matrix(data=0, nrow=T)
+        inflazione=matrix(data=0, nrow=T)
+        
+        gexGDP=matrix(data=0, nrow=T)
+        gexTax=matrix(data=0, nrow=T)
+        gexU=matrix(data=0, nrow=T)
+        g_GDP=matrix(data=0, nrow=T)
+        g_GDPreal=matrix(data=0, nrow=T)
+        g_Tax=matrix(data=0, nrow=T)
+        g_U=matrix(data=0, nrow=T)
+        controllo2=matrix(data=0, nrow=T)
+        produzionek=matrix(data=0, nrow=T)
+      }
+      #inzializzazione della quantit? di capitale installata in ogni impresa per i primi dk periodi (dk ? il numero di periodi necessari per produrre un bene capitale)
+      for(i in 1:dk){
+        if(i==1){
+          Installare[i]=kin
+          storicofuturo[i+z]=kin
+        }else{
+          kresiduo=0
+          s=1/z
+          for(j in (i+1):(i+z-1)){
+            kresiduo=kresiduo+storicofuturo[j]*s
+            s=s+1/z
+          }
+          
+          Installare[i]=kin-kresiduo
+          storicofuturo[i+z]=Installare[i]
+        }      
+        Installarenominale[i]=Installare[i]*pk  #non ci metto gli interessi perche non mi sono indebitato per questo capitale, ? una dotazione iniziale
+      }
+      
+      
+      for(i in 1:dk){
+        for(j in (NFK+1):NF){
+          Iinstalled[i,j]=Installare[i]
+          Iinstallednominal[i,j]=Installarenominale[i]
+          Iinstallednominal_noint[i,j]=Installarenominale[i]
+          Iinstallednominalfull[i,j]=Installarenominale[i]*(1+spam2*exintrate)
+          kfutinstorico[i+z,j]=Installare[i]
+          kfutinstorico_nominal[i+z,j]=Installarenominale[i]
+          kfutinstorico_nominal_interest[i+z,j]=Installarenominale[i]
+        }
+      }
+      tol <- 1e-7
+      # Start #####
+      lista_equity_vincolati <- list()
+      for (t in 1:T){
+        contaroundequity=0
+        nint[]=0
+        priceweightedC[]=0
+        markupweightedC[]=0
+        markupweightedK[]=0
+        priceweightedK[]=0
+        nintcredit[]=0
+        #totrealconsumption[]=0
+        #w[]=wageExogenous
+        x[]=xexogenous
+        # y[]=0
+        #  y_d[]=0
+        # realsails[]=0
+        # servicedebtF[]=0
+        # revenues[]=0
+        consumptiondemand[]=0
+        # realconsumptiondemand[]=0
+        residualconsumpiondemand[]=0
+        residualcapitaldemand[]=0
+        #  lrequired[]=0
+        #  labordemand[]=0
+        #demandperfirmcapital[]=0
+        esaurimentoK[]=2
+        esaurimento[]=2
+        # k_de[]=0
+        # profit[]=0
+        #  profit_fe[]=0
+        currentcost[]=0
+        currentcost_profit[]=0
+        indexF[]=NA
+        #  wb[]=0
+        #  div[]=0
+        situaindexF[]=0
+        situaindexFK[]=2
+        #nominalconsumptionexpenditure[]=0
+        residualnominalconsumptiondemand[]=0
+        #   ammortamento[]=0
+        nominalresidualconsumptiondemand[]=0
+        #realconsumptiondemand[]=0
+        #nominalconsumptiondemand[]=0
+        #indexC[]=NA
+        #indexFK[]=NA
+        
+        #dinero[]=0
+        
+        #Taylor rule
+        # if(t>20){
+        # intrate[t]=t1*inttarget+t2*intrate[t-1]+t3*(inflazione[t-1]-inflazionetarget)
+        # intrateshort[t]=intrate[t]
+        # }
+        
+        #fissazione lambda #####
+        if(t==100){
+          
+          l_00_l=matrix(data=0, ncol=N)
+          l_10_l=matrix(data=0, ncol=N)
+          l_20_l=matrix(data=0, ncol=N)
+          
+          l_01_l=matrix(data=0, ncol=N)
+          l_11_l=matrix(data=0, ncol=N)
+          l_21_l=matrix(data=0, ncol=N)
+          
+          l_02_l=matrix(data=0, ncol=N)
+          l_12_l=matrix(data=0, ncol=N)
+          l_22_l=matrix(data=0, ncol=N)
+          
+          l_03_l=matrix(data=0, ncol=N)
+          l_04_l=matrix(data=0, ncol=N)
+          l_13_l=matrix(data=0, ncol=N)
+          l_14_l=matrix(data=0, ncol=N)
+          l_23_l=matrix(data=0, ncol=N)
+          l_24_l=matrix(data=0, ncol=N)
+          
+          
+          # aug_bond=0.2 #alfa - deve essere minore di perc_agg, all'aumentare di alfa diminuisce la varianza o le'eterogeneità della sitribuzione
+          
+          stock=sum(Vmarket[t-1,])
+          ma=matrix(data=0, nrow=N,ncol=N)
+          for(i in 1:N){
+            ma[i,i]=1
+          }
+          ma=cbind(ma,-Vmarket[t-1,])
+          vecsh=c(Vmarket[t-1,],0)
+          ma=rbind(ma,vecsh)
+          bbc=c(rep(aug_bond,N),perc_agg*stock)
+          lambdaz=solve(ma,bbc)
+          
+          if(length(which(lambdaz[1:N]<0))>0){
+            print("problem lambda bond definition 3")
+            stop()
+          }
+          if(length(which(lambdaz[1:N]>1))>0){
+            print("problem lambda bond definition 4")
+            stop()
+          }
+          
+          bbc=c(rep(aug_equity,N),perc_agg_equity*stock)
+          lambdaz_equity=solve(ma,bbc)
+          
+          if(length(which(lambdaz_equity[1:N]<0))>0){
+            print("problem lambda equiy definition")
+            stop()
+          }
+          if(length(which(lambdaz_equity[1:N]>1))>0){
+            print("problem lambda equity definition")
+            stop()
+          }
+          
+          for(i in 1:N){
+            
+            #Protafoglio dei lavoratori
+            if(householdcompranobond==1){
+              l_00_l[i]=lambdaz[i]    #min(0.15*(1+share_tot[i]*aug_bond/share_tot[1]),1)
+            }else{
+              l_00_l[i]=0 
+            }
+            if(householdcompranoequity==1){
+              l_10_l[i]=lambdaz_equity[i]}else{
+                l_10_l[i]=0  
+              }
+            l_20_l[i]=1-l_10_l[i]-l_00_l[i]
+            
+            # coefficiente del tasso sui depositi 
+            if(householdcompranobond==1){
+              l_01_l[i]=0}else{
+                l_01_l[i]=0  
+              }
+            if(householdcompranoequity==1){
+              l_11_l[i]=0
+            }else{
+              l_11_l[i]=0  
+            } 
+            l_21_l[i]=-(l_01_l[i]+l_11_l[i])
+            #Coefficiente del retur on-equity
+            if(householdcompranoequity==1 && householdcompranobond==1){
+              l_02_l[i]=l_equity}else{
+                l_02_l[i]=0 
+              }
+            l_22_l[i]=l_11_l[i]  
+            l_12_l[i]=-(l_22_l[i]+l_02_l[i])  
+            
+            # coefficiente bond
+            l_13_l[i]=l_02_l[i]            
+            l_23_l[i]=l_01_l[i]    
+            l_03_l[i]=-(l_02_l[i]+l_01_l[i])         
+            
+            #coefficiente reddito
+            l_04_l[i]=0
+            l_14_l[i]=0
+            l_24_l[i]=-(l_04_l[i]+l_14_l[i])
+            
+            
+            M_port=rbind(c(l_00_l[i],l_01_l[i],l_02_l[i],l_03_l[i],l_04_l[i]),c(l_10_l[i],l_11_l[i],l_12_l[i],l_13_l[i],l_14_l[i]),c(l_20_l[i],l_21_l[i],l_22_l[i],l_23_l[i],l_24_l[i]))
+            if(i==1){
+              MATS<-list(M_port)
+            }else{
+              MATS[[i]]<-M_port
+            }
+            #Check symmetry contraints
+            if(l_01_l[i]==l_23_l[i]){
+              
+            }else{
+              print("simmetriy_portfolioworker_problem1")
+              stop()
+            }
+            if(l_02_l[i]==l_13_l[i]){
+              
+            }else{
+              print("simmetriy_portfolioworker_problem2")
+              stop()
+              
+            }
+            if(l_11_l[i]==l_22_l[i]){}else{  
+              print("simmetriy_portfolioworker_problem3")
+              stop()
+              
+            }
+          }
+          
+          if(length(which(l_20_l<0))>1){
+            print("monety deposit preference is negative => equity and bond preferences are too high ")
+            stop()
+          }
+          
+          if(round(aug_bond,4)>round(perc_agg,4)){
+            print("problem aug_bond maggiore di perc_aggregate: i lambda diventano negativi")
+            stop()
+          }
+          
+          if((all.equal(sum(share_H), 1))==FALSE){
+            
+            print("problemshareH")
+            stop()
+          }
+          
+          if((all.equal(sum(share_B), 1))==FALSE){
+            print("problemshareB")
+            stop()
+          }
+          
+          
+        }
+        
+        ########
+        
+        
+        if(t>1){
+          cashF[t,]=cashF[t-1,]
+        }
+        
+        if(t==shock){
+          exintpub=exintpub*4
+          #0.8*mk[t-1]+0.2*mk[t-1]*(1-0.1*U[t-1]/UN)
+          
+        }
+        if(t>8000){
+          mk[t]=0.4-change*U[t-1]/UN     
+        }
+        advanceinterest[t]=0
+        intrate[t]=exintpub
+        intrateshort[t]=exintpub
+        intrateoverdraft[t]=0
+        intratedeposit[t]=exintpub*0.5
+        bondinterest[t]=exintpub
+        pubintratestorico[t+tpub]=bondinterest[t]
+        for(i in 1:tpub){
+          pbond[t]=pbond[t]+1/((1+bondinterest[t])^i)
+        }
+        # fissazione del salari nominale aggregato 
+        if(t>1){
+          wageaggregate[t]=wageaggregate[t-1]*(1+sens*(U[t-1]/UN))
+          w[]=wageaggregate[t]
+        }else{
+          w[]=wageExogenous
+          wageaggregate[t]=wageExogenous
+        }
+        
+        #sussidio pagato dal governo
+        if(t>80){
+          wgov[t]=mean(wage[t-1,which(unemp==0)])*alfawgovvalue
+        }
+        
+        # Interessi pagati sul debito pubblico
+        bondrepayment[t]=bondscadenza[t]
+        for(j in t:(t+tpub-1)){
+          if(bondstorico[j]>0){
+            interestpaymentG[t]=interestpaymentG[t]+bondstorico[j]*pubintratestorico[j]
+          }
+        }
+        # if(t>1){
+        # interestpaymentG[t]=stockdebtG[t-1]*bondinterest[t-1]
+        # }
+        # Profitti della BC
+        if(t>1){
+          for(j in t:(t+tpub-1)){
+            if(bondstoricoCB[j]>0){
+              interestBond_CB[t]=interestBond_CB[t]+bondstoricoCB[j]*pubintratestorico[j]
+            }
+          }
+          
+          #interestBond_CB[t]=BondCB[t-1]*bondinterest[t-1] ##cosi solo perche ho messo che dura un periodo il bond
+          ProfitCB[t]=interestBond_CB[t]+Advances[t-1]*advanceinterest[t-1]-Hb2[t-1]*intratedeposit[t-1]
+        }
+        if(round(ProfitCB[t],4)<0){
+          #print("problemProfitCB")
+          #print(t)
+        }
+        
+        
+        # Aspettativa adattiva del Governo, per il calcolo della spesa in caso di vincolo di bilancio da rispettare
+        if(t>4){
+          gexGDP[t]=gexGDP[t-2]+epsi*(g_GDP[t-1]-gexGDP[t-2])
+          gexTax[t]=gexTax[t-2]+epsi*(g_Tax[t-1]-gexTax[t-2])
+          gexU[t]=gexU[t-2]+epsi*(g_U[t-1]-gexU[t-2])
+        }else if(t==3 | t==4){
+          
+          gexGDP[t]=g_GDP[t-1]
+          gexTax[t]=g_Tax[t-1]
+          gexU[t]=g_U[t-1]
+        } 
+        
+        
+        
+        
+        
+        
+        
+        #Aggiornamento capitale installato: il capitale odierno corrisponde alla composizione delle diverse quantit? di capitale installate nei periodi precedenti e deprezzati in ogni periodo, in pi? arriva il capitale ordinato nel periodo precedente
+        
+        if(t<=dk){
+          
+          storicoI[t+z,(NFK+1):NF]=Iinstalled[t,(NFK+1):NF]
+          storicoINfull[t+z,(NFK+1):NF]=Iinstallednominalfull[t,(NFK+1):NF]
+          storicoIN[t+z,(NFK+1):NF]=Iinstallednominal[t,(NFK+1):NF]
+          storicoIN_noint[t+z,(NFK+1):NF]=Iinstallednominal_noint[t,(NFK+1):NF]
+          storicoIN_loan[t+z,(NFK+1):NF]=kdordinatofeasiblenominalstorico_loan[t,(NFK+1):NF]
+        }else{
+          Iinstalled[t,(NFK+1):NF]=kdordinatofeasiblestorico[t,(NFK+1):NF]  
+          Iinstallednominal_noint[t,(NFK+1):NF]=kdordinatofeasiblenominalstorico_noint[t,(NFK+1):NF] 
+          Iinstallednominal[t,(NFK+1):NF]=kdordinatofeasiblenominalstorico[t,(NFK+1):NF] 
+          Iinstallednominalfull[t,(NFK+1):NF]=kdordinatofeasiblenominalstoricofull[t,(NFK+1):NF] 
+          storicoI[t+z,(NFK+1):NF]=Iinstalled[t,(NFK+1):NF]
+          storicoIN[t+z,(NFK+1):NF]=Iinstallednominal[t,(NFK+1):NF]
+          storicoIN_noint[t+z,(NFK+1):NF]=Iinstallednominal_noint[t,(NFK+1):NF]
+          storicoINfull[t+z,(NFK+1):NF]=Iinstallednominalfull[t,(NFK+1):NF]
+          storicoIN_loan[t+z,(NFK+1):NF]=kdordinatofeasiblenominalstorico_loan[t,(NFK+1):NF]
+          
+        }
+        
+   
+        szz=1/z
+        for(j in (t+1):(t+z)){
+          k[t,(NFK+1):NF]=k[t,(NFK+1):NF]+storicoI[j,(NFK+1):NF]*szz
+          kvalue2[t,(NFK+1):NF]= kvalue2[t,(NFK+1):NF]+storicoIN[j,(NFK+1):NF]*szz
+          kvalue2_noint[t,(NFK+1):NF]= kvalue2_noint[t,(NFK+1):NF]+storicoIN_noint[j,(NFK+1):NF]*szz
+          szz=szz+1/z
+        }
+        
+        #ammortamento effettivo
+        #prov[1:dk,(NFK+1):NF]=storicoIN[(z+1):(z+dk),(NFK+1):NF]
+        #provfull[1:dk,(NFK+1):NF]=storicoINfull[(z+1):(z+dk),(NFK+1):NF]
+        # storicoIN[(z+1):(z+dk),(NFK+1):NF]=0
+        #storicoINfull[z+1,i]=0
+        
+        g=1/z
+        for(j in (t+1):(t+z)){
+          ammortamento[t,(NFK+1):NF]=ammortamento[t,(NFK+1):NF]+storicoIN[j,(NFK+1):NF]*g/spam
+          # ammortamento_futuro[t,(NFK+1):NF]=ammortamento_futuro[t,(NFK+1):NF]+storicoIN[j+1,(NFK+1):NF]*g/spam
+          ammortamento_profit[t,(NFK+1):NF]=ammortamento_profit[t,(NFK+1):NF]+storicoIN_loan[j,(NFK+1):NF]*g/spam
+          ammortamentofull[t,(NFK+1):NF]=ammortamentofull[t,(NFK+1):NF]+storicoINfull[j,(NFK+1):NF]*g/spam
+          kvalue_used[t,(NFK+1):NF]=kvalue_used[t,(NFK+1):NF]+storicoIN[j,(NFK+1):NF]*g
+          g=g+1/z
+        }
+        
+        if(t>1){
+          kvalue[t,(NFK+1):NF]=kvalue[t-1,(NFK+1):NF]+Iinstallednominal[t,(NFK+1):NF]-ammortamento[t,(NFK+1):NF]
+        }else{
+          kvalue[t,(NFK+1):NF]=Iinstallednominal[t,(NFK+1):NF]-ammortamento[t,(NFK+1):NF]
+          
+        }
+        
+        for(i in (NFK+1):NF){
+          if(kvalue[t,i]>0){
+            g=1/z
+            for(j in (t+1):(t+z)){
+              wighted_leverage[t,i]=wighted_leverage[t,i]+(storicoIN[j,i]*g*leveragestorico[j,i])/kvalue_used[t,i]
+              wighted_leverage_equity[t,i]=wighted_leverage_equity[t,i]+(storicoIN[j,i]*g*lev_equitystorico[j,i])/kvalue_used[t,i]
+              g=g+1/z
+            }
+          }
+          if(wighted_leverage_equity[t,i]!=(1-wighted_leverage[t,i]) && kd[t,i]>0){
+            print("problem leverage computation")
+            stop()
+          }
+        }
+        
+        
+        
+        
+        #totaldemandcapital=sum(kd[t,])
+        #aFK= ceiling(runif(NFC,min=0,max=NFK))
+        #bFK=matrix(data=0, ncol=NFK)
+        #indexFK=c(bFK,aFK)
+        
+        #ammortamento composito DECRESCENTE: nel primo periodo posso utilizzare maggiore capaict? produttiva quindi sostengo un ammortamento maggiore, nel secondo di meno e cosi via....GRANDE IDEAA che risolve il problema!!!!
+        
+        
+        
+        #for(i in (NFK+1):NF){
+        # for(j in (t+1):(t+z)){
+        #  if (storicoIN[j,i]>0){
+        #   ammortamento[i]=ammortamento[i]+(storicoIN[j,i]/z)
+        #  }
+        #}
+        #}
+        ktot=sum(k[t,])
+        
+        
+        #la spesa pubblica ? distribuita in maniera proporzionale rispetto alla dimensione dell'impresa
+        alfak[t,(NFK+1):NF]=k[t,(NFK+1):NF]/ktot
+        
+        alfasort=sort(alfak[t,(NFK+1):NF],decreasing=FALSE)
+        stocnum=min(abs(alfasort[1]-rfoldnorm(1,mean=alfasort[1],sd=alfasort[1]*0.3)),alfasort[1]*0.9)
+        shufflefirm=sample((NFK+1):NF)
+        if((NFC %% 2)==0){
+          for(i in 1:NFC){
+            if((i %% 2)==0){
+              alfak[t,shufflefirm[i]]=alfak[t,shufflefirm[i]]+stocnum
+            }else{
+              alfak[t,shufflefirm[i]]=alfak[t,shufflefirm[i]]-stocnum
+            }
+            alfak[t,(NFK+1):NF]=ifelse(is.nan(alfak[t,(NFK+1):NF])==TRUE,0,alfak[t,(NFK+1):NF])
+            alfak[t,(NFK+1):NF]=ifelse(is.na(alfak[t,(NFK+1):NF])==TRUE,0,alfak[t,(NFK+1):NF])
+            
+          }
+        }else{
+          
+          for(i in 1:NFC){ 
+            
+            if(i<NFC){
+              if((i %% 2)==0){
+                alfak[t,shufflefirm[i]]=alfak[t,shufflefirm[i]]+stocnum
+              }else{
+                alfak[t,shufflefirm[i]]=alfak[t,shufflefirm[i]]-stocnum
+              }
+              
+              
+            }
+            alfak[t,(NFK+1):NF]=ifelse(is.nan(alfak[t,(NFK+1):NF])==TRUE,0,alfak[t,(NFK+1):NF])
+            alfak[t,(NFK+1):NF]=ifelse(is.na(alfak[t,(NFK+1):NF])==TRUE,0,alfak[t,(NFK+1):NF])
+            
+          }
+          
+        }
+        
+        if(length(which(alfak[t,]<0))>0){
+          print("alfak negativo")
+          errortrial=numtrial
+          save.image("/nobackup/bnldd/erroralfak.RData")     
+          stop()
+        }
+        
+        
+        markup[t,1:NF]=markupc      # rimane valido solo nel caso in cui i prezzi sono fissi
+        unitcost[t,1:NFK]=wageaggregate[t]/phi
+        p[t,1:NFK]= unitcost[t,1:NFK]*(1+markup[t,1:NFK])
+        
+        
+        #Produzione e domanda capitale settore C ####
+        if(TRUE){
+          if(t>2){
+            q_e[t,which(cod==1 & bancarotta[t-1,]==0)]=ifelse(round(inv[t-1,which(cod==1 & bancarotta[t-1,]==0)],5)>0,beta[which(cod==1 & bancarotta[t-1,]==0)]*realsails[t-1,which(cod==1 & bancarotta[t-1,]==0)]+(1-beta[which(cod==1 & bancarotta[t-1,]==0)])*q_e[t-1,which(cod==1 & bancarotta[t-1,]==0)],(beta[which(cod==1 & bancarotta[t-1,]==0)]*realsails[t-1,which(cod==1 & bancarotta[t-1,]==0)]+(1-beta[which(cod==1 & bancarotta[t-1,]==0)])*q_e[t-1,which(cod==1 & bancarotta[t-1,]==0)])*1)  #nel caso di memoria storica con pesi decrescenti 
+            if(length(which(bancarotta[t-1,]==1))>0){
+              stocvec=abs(rfoldnorm(length(which(bancarotta[t-1,]==1)),mean=0.1,sd=0.0096))
+              q_e[t,which(cod==1 & bancarotta[t-1,]==1)]=stocvec*(beta[which(cod==1 & bancarotta[t-1,]==1)]*realsails[t-1,which(cod==1 & bancarotta[t-1,]==1)]+(1-beta[which(cod==1 & bancarotta[t-1,]==1)])*q_e[t-1,which(cod==1 & bancarotta[t-1,]==1)])
+              gex[t-1,which(cod==1 & bancarotta[t-1,]==1)]=0
+              gex[t-2,which(cod==1 & bancarotta[t-1,]==1)]=0
+              gr[t-1,which(cod==1 & bancarotta[t-1,]==1)]=0
+            }
+            if(t>3){
+              gex[t,(NFK+1):NF]=gex[t-1,(NFK+1):NF]+alfa[(NFK+1):NF]*(gr[t-1,(NFK+1):NF]-gex[t-1,(NFK+1):NF])
+            }else{
+              gex[t,(NFK+1):NF]=gr[t-1,(NFK+1):NF]
+            }
+            gex[t,(NFK+1):NF]=ifelse(is.infinite(gex[t,(NFK+1):NF]==TRUE),0.5,gex[t,(NFK+1):NF])
+            q_dn[t,(NFK+1):NF]=q_e[t,(NFK+1):NF]*(1+espe*gex[t,(NFK+1):NF])   #*(1+sigma)
+            k_de[t,(NFK+1):NF]=q_dn[t,(NFK+1):NF]/(u_n*x[(NFK+1):NF])
+            szz=1/z
+            # calcolo del quantitativo di capitale che l'impresa avrebbe nel periodo t+dkm nel caso in cui non ordinasse niente
+            for(j in (t+dk+1):(t+z+dk-1)){
+              capfuturo[t,(NFK+1):NF]=capfuturo[t,(NFK+1):NF]+kfutinstorico[j,(NFK+1):NF]*szz
+              capfuturo_value[t,(NFK+1):NF]=capfuturo_value[t,(NFK+1):NF]+kfutinstorico_nominal_interest[j,(NFK+1):NF]*szz
+              capfuturo_value_noint[t,(NFK+1):NF]=capfuturo_value_noint[t,(NFK+1):NF]+kfutinstorico_nominal[j,(NFK+1):NF]*szz
+              szz=szz+1/z
+            }
+            
+            # 
+            kd[t,(NFK+1):NF]=pmax(0,gamma*(k_de[t,(NFK+1):NF]-capfuturo[t,(NFK+1):NF]))
+            cap_depreciated[t,(NFK+1):NF]=k[t,(NFK+1):NF]-capfuturo[t,(NFK+1):NF]
+            cap_depreciated_value_int[t,(NFK+1):NF]=kvalue2[t,(NFK+1):NF]-capfuturo_value[t,(NFK+1):NF]
+            cap_depreciated_value_noint[t,(NFK+1):NF]=kvalue2_noint[t,(NFK+1):NF]-capfuturo_value_noint[t,(NFK+1):NF]
+            perc_net[t,(NFK+1):NF]=ifelse(kd[t,(NFK+1):NF]>cap_depreciated[t,(NFK+1):NF],(kd[t,(NFK+1):NF]-cap_depreciated[t,(NFK+1):NF])/kd[t,(NFK+1):NF],0)
+            
+            uefuturo[t,(NFK+1):NF]=ifelse(q_dn[t,(NFK+1):NF]==0,0,q_dn[t,(NFK+1):NF]/(capfuturo[t,(NFK+1):NF]*x[(NFK+1):NF]))
+            uefuturo[t,(NFK+1):NF]=ifelse(is.infinite(uefuturo[t,(NFK+1):NF])==TRUE,1,uefuturo[t,(NFK+1):NF])
+            
+            invt[t,(NFK+1):NF]=sigma*q_e[t,(NFK+1):NF]
+            y_d[t,(NFK+1):NF]=pmax(0,q_e[t,(NFK+1):NF]-inv[t-1,(NFK+1):NF]+invt[t,(NFK+1):NF])
+            ue[t,(NFK+1):NF]=ifelse(y_d[t,(NFK+1):NF]==0 | k[t,(NFK+1):NF]==0,0,y_d[t,(NFK+1):NF]/(k[t,(NFK+1):NF]*x[(NFK+1):NF]))
+            ue_f[t,(NFK+1):NF]=ifelse(y_d[t,(NFK+1):NF]==0 | k[t,(NFK+1):NF]==0,0,pmin(1,ue[t,(NFK+1):NF]))
+            #unit? di lavoro richieste (ore)
+            lhrequired[t,(NFK+1):NF]=ifelse(y_d[t,(NFK+1):NF]==0 | k[t,(NFK+1):NF]==0,0,ue_f[t,(NFK+1):NF]*k[t,(NFK+1):NF]/v )
+            #numero di lavoratori richiesti
+            lrequired[t,(NFK+1):NF]=ceiling(lhrequired[t,(NFK+1):NF]/hmese)
+            
+            
+            u_med[t,(NFK+1):NF]=ualfa[(NFK+1):NF]*ue_f[t,(NFK+1):NF]+(1-ualfa[(NFK+1):NF])*u_med[t-1,(NFK+1):NF]
+            # kd[t,(NFK+1):NF]=ifelse(u_med[t,(NFK+1):NF]>u_n & uefuturo[t,(NFK+1):NF]>u_n,round(pmax(0,k_de[t,(NFK+1):NF]-capfuturo[t,(NFK+1):NF]),4),(ifelse(capfuturo[t,(NFK+1):NF]*x[(NFK+1):NF]<q_dn[t,(NFK+1):NF],round(q_dn[t,(NFK+1):NF]/x[(NFK+1):NF]-capfuturo[t,(NFK+1):NF],4),0)))
+            
+          }else{
+            
+            if(t==1){
+              q_e[t,(NFK+1):NF]=qexogenousc
+            }else{
+              q_e[t,(NFK+1):NF]=realsails[t-1,(NFK+1):NF] #*b+demandperfirmconsumer[t-2,i]*(1-b): dal terzo periodo#posso cambiarla e metterci quella in toward a benchmark model stigliz ecc
+            }
+            q_dn[t,(NFK+1):NF]=q_e[t,(NFK+1):NF]*(1+espe*gex[t,(NFK+1):NF])#*(1+sigma)
+            k_de[t,(NFK+1):NF]=q_dn[t,(NFK+1):NF]/(u_n*x[(NFK+1):NF])
+            szz=1/z
+            for(j in (t+dk+1):(t+z+dk-1)){
+              capfuturo[t,(NFK+1):NF]=capfuturo[t,(NFK+1):NF]+kfutinstorico[j,(NFK+1):NF]*szz
+              capfuturo_value[t,(NFK+1):NF]=capfuturo_value[t,(NFK+1):NF]+kfutinstorico_nominal_interest[j,(NFK+1):NF]*szz
+              capfuturo_value_noint[t,(NFK+1):NF]=capfuturo_value_noint[t,(NFK+1):NF]+kfutinstorico_nominal[j,(NFK+1):NF]*szz
+              
+              szz=szz+1/z
+            }
+            invt[t,(NFK+1):NF]=sigma*q_e[t,(NFK+1):NF]
+            if(t==1){
+              y_d[t,(NFK+1):NF]=max(0,q_e[t,(NFK+1):NF]+invt[t,(NFK+1):NF])
+            }else{
+              y_d[t,(NFK+1):NF]=max(0,q_e[t,(NFK+1):NF]-inv[t-1,(NFK+1):NF]+invt[t,(NFK+1):NF])
+            }
+            ue[t,(NFK+1):NF]=ifelse(y_d[t,(NFK+1):NF]==0 | k[t,(NFK+1):NF]==0,0,y_d[t,(NFK+1):NF]/(k[t,(NFK+1):NF]*x[(NFK+1):NF]))
+            ue_f[t,(NFK+1):NF]=ifelse(y_d[t,(NFK+1):NF]==0 | k[t,(NFK+1):NF]==0,0,pmin(1,ue[t,(NFK+1):NF]))
+            lhrequired[t,(NFK+1):NF]=ifelse(y_d[t,(NFK+1):NF]==0 | k[t,(NFK+1):NF]==0,0,ue_f[t,(NFK+1):NF]*k[t,(NFK+1):NF]/v )
+            lrequired[t,(NFK+1):NF]=ceiling(lhrequired[t,(NFK+1):NF]/hmese)
+            uefuturo[t,(NFK+1):NF]=ifelse(q_dn[t,(NFK+1):NF]==0,0,q_dn[t,(NFK+1):NF]/(capfuturo[t,(NFK+1):NF]*x[(NFK+1):NF]))
+            uefuturo[t,(NFK+1):NF]=ifelse(is.infinite(uefuturo[t,(NFK+1):NF])==TRUE,1,uefuturo[t,(NFK+1):NF])
+            
+            if(t==1){
+              u_med[t,(NFK+1):NF]=ue_f[t,(NFK+1):NF]
+            }else{
+              u_med[t,(NFK+1):NF]=ualfa[(NFK+1):NF]*ue_f[t,(NFK+1):NF]+(1-ualfa[(NFK+1):NF])*ue_f[t-1,(NFK+1):NF]
+            }
+            
+            kd[t,(NFK+1):NF]=pmax(0,gamma*(k_de[t,(NFK+1):NF]-capfuturo[t,(NFK+1):NF]))
+            kd[t,(NFK+1):NF]=ifelse((kd[t,(NFK+1):NF]+capfuturo[t,(NFK+1):NF])*x[(NFK+1):NF]<q_dn[t,(NFK+1):NF],round(q_dn[t,(NFK+1):NF]/x[(NFK+1):NF]-capfuturo[t,(NFK+1):NF],4), kd[t,(NFK+1):NF])
+            #kd[t,(NFK+1):NF]=ifelse(u_med[t,(NFK+1):NF]>u_n && uefuturo[t,(NFK+1):NF]>u_n,round(pmax(0,k_de[t,(NFK+1):NF]-capfuturo[t,(NFK+1):NF]),4),(ifelse(capfuturo[t,(NFK+1):NF]*x[(NFK+1):NF]<q_dn[t,(NFK+1):NF],round(q_dn[t,(NFK+1):NF]/x[(NFK+1):NF]-capfuturo[t,(NFK+1):NF],4),0)))
+            
+            
+          }
+        }
+        
+        
+        totaldemandcapital=sum(kd[t,])
+        
+        
+        ###Matching mercato capitale ####
+        
+        
+        if(TRUE){
+          
+          if(sceltastocasticaK==1){
+            
+            fun <- function(x) {
+              # function to print x raised to the power y
+              return(sample(1:NFK)[1])
+            }
+            indexFK[t,(NFK+1):NF]=sapply((NFK+1):NF,fun)
+          }else{
+            #prima assegnazione delle imprese che vendono capitali alle imrpese consumer
+            for (i in (NFK+1):NF){
+              if(NFK>=parmatchingcapital){
+                potentialSuppliers=sample(NFK)[1:parmatchingcapital]
+              }else{
+                potentialSuppliers=sample(NFK)
+              }
+              minPrice=min(p[t,potentialSuppliers])
+              #indexFK[t,i]=potentialSuppliers[p[t,potentialSuppliers]==minPrice][1]
+              if(t>1 && is.na(indexFK[t-1,i])==FALSE){
+                
+                if(minPrice<p[t,indexFK[t-1,i]]){
+                  proba=1-e^(swicK*((minPrice-p[t,indexFK[t-1,i]])/minPrice))  #probabilit? di cambiare fornitore
+                  prob=c(proba,1-proba)
+                  sol=rbinom(1, size=1, prob=prob)
+                  if(sol==1){
+                    indexFK[t,i]=potentialSuppliers[p[t,potentialSuppliers]==minPrice][1]
+                  }else{
+                    indexFK[t,i]=indexFK[t-1,i]
+                  }
+                }else{
+                  indexFK[t,i]=indexFK[t-1,i]
+                }
+              }else{
+                indexFK[t,i]=potentialSuppliers[p[t,potentialSuppliers]==minPrice][1]
+              }
+              
+              #kstoricoordinatonominal[t+dk-1,i]=kd[t,i]*p[t,indexFK[t,i]]
+              #kdfeasible[t,i]=kstoricoordinato[t,i]
+              #kdfeasiblenominal[t,i]=kstoricoordinatonominal[t,i]
+            }
+          }
+        }
+        
+        
+        if(t==1 & equaldistribution==1){
+          indexFK[t,(NFK+1):NF]=indexcapitale
+        }
+        
+        
+        
+        if(TRUE){
+          fun <- function(x) {
+            # function to print x raised to the power y
+            return(sum(kd[t,which(indexFK[t,]==x)]))
+          }
+          demandperfirmcapital[t,1:NFK]=sapply(1:NFK,fun)
+          storicoprezzo[t+dk-1,1:NFK]=p[t,1:NFK]
+          if(dk>1){
+            #quantit? di semilavorati ancora da produrre
+            for(j in 2:dk){
+              y_old[t,1:NFK]=y_old[t,1:NFK]+storicoordinifeasible[t+dk-j,1:NFK]
+              #valore storico della % di semilavorato che andr? a produrre in questo periodo (serve per il calcolo del GDP)
+              y_oldvalore[t,1:NFK]=y_oldvalore[t,1:NFK]+storicoordinifeasible[t+dk-j,1:NFK]*storicoprezzo[t+dk-j,1:NFK]
+            }
+            #quantitativo che l'impresa desidera produre nel periodo
+            y_d[t,1:NFK]=y_old[t,1:NFK]+demandperfirmcapital[t,1:NFK]/dk
+          }else{
+            y_d[t,1:NFK]=demandperfirmcapital[t,1:NFK]
+          }
+          
+          if(t>1){
+            y_d[t,1:NFK]=pmax(0, y_d[t,1:NFK]) #in realt? questo settore non ha scorte (le avrebbe solo se, a causa del ceiling, ha pi? ore lavoro a dosposizione del necessario, cmq questa cosa non c'? p? ora)
+            
+          }
+          
+          lhrequired[t,1:NFK]=y_d[t,1:NFK]/phi     
+          lrequired[t,1:NFK]=ceiling(lhrequired[t,1:NFK]/hmese)
+          
+        }
+        
+        if(t>1){
+          employees[t,]=employees[t-1,]
+        }
+        
+        labordemand[t,]=lrequired[t,]-employees[t,]
+        
+        
+        # MERCATO DEL LAVORO #####
+        if(t>1){
+          unemp2[t,]=unemp2[t-1,]
+        }else{
+          unemp2[t,]=unemp[]  
+        }
+        for (i in 1:NF){
+          if(labordemand[t,i]<0){
+            employeesShuffled=sample(length(which(employer==i))) 
+            toBeFired=which(employer==i)[employeesShuffled[1:-labordemand[t,i]]]
+            employees[t,i]=employees[t,i]+labordemand[t,i]
+            unemp[toBeFired]=1
+            unemp2[t,toBeFired]=1
+            employer[toBeFired]=NA
+            labordemand[t,i]=0
+          }
+        }
+        
+        
+        
+        
+        
+        
+        
+        #activeFirms = which(labordemand[t,]>0)
+        if(FALSE){
+          while(length(which(labordemand[t,]>0))>0 & length(which(unemp[]==1))>0){
+            activeFirms = which(labordemand[t,]>0)
+            if(length(which(unemp[]==1))>1){
+              workershuffle=sample(which(unemp[]==1))
+              indexW=workershuffle[1]
+            }else if(length(which(unemp[]==1))==1){
+              indexW=which(unemp[]==1) 
+            }
+            indexEmployerTemp = ceiling(length(activeFirms) * runif(1))
+            indexEmployer = activeFirms[indexEmployerTemp]
+            employees[t,indexEmployer] = employees[t,indexEmployer] + 1
+            labordemand[t,indexEmployer]=labordemand[t,indexEmployer]-1
+            unemp[indexW] = 0
+            unemp2[t,indexW]=0
+            employer[indexW] = indexEmployer
+          }
+        }
+        
+        
+        
+        
+        
+        
+        if(TRUE){
+          householdsShuffled=sample(N) #mercato del lavoro base come in Caiani
+          for (j in 1:N){  #i capitalisti non lavorano
+            indexW = householdsShuffled[j]
+            if (unemp[indexW] == 1) {
+              activeFirms = which(labordemand[t,]> 0)
+              if (length(activeFirms) > 0) {
+                indexEmployerTemp = ceiling(length(activeFirms) * runif(1))
+                indexEmployer = activeFirms[indexEmployerTemp]
+                employees[t,indexEmployer] = employees[t,indexEmployer] + 1
+                labordemand[t,indexEmployer]=labordemand[t,indexEmployer]-1
+                unemp[indexW] = 0
+                unemp2[t,indexW] = 0
+                employer[indexW] = indexEmployer
+                
+              }else{
+                employer[indexW] = NA
+                #wage[t,indexW] = 0
+              }
+            }else{
+              #wage[t,indexW] = w[indexW]*lperwork[t,employer[indexW]]
+              #taxpayment[t,indexW]=w[indexW]*tauwork
+              #wb[t,employer[indexW]] = wb[t,employer[indexW]] + w[indexW]*lperwork[t,employer[indexW]]
+            }
+          } 
+        }  
+        
+        if(length(which(labordemand[t,]<0))>0){
+          print("labordemandnegative")
+        }
+        
+        #Produzione settore K ####
+        if(TRUE){
+          for(i in 1:NFK){
+            if(lhrequired[t,i]>0){
+              if(lrequired[t,i]==employees[t,i]){
+                y[t,i]=y_d[t,i]
+                lperwork[t,i]=lhrequired[t,i]/lrequired[t,i]
+                if(is.nan(lperwork[t,i])==TRUE){
+                  lperwork[t,i]=0
+                }
+                #wperwork[t,i]=wageExogenous*lperwork[t,i]
+                wb[t,i]=sum(w[which(employer==i)])*lperwork[t,i]
+              }else{
+                y[t,i]=employees[t,i]*hmese*phi
+                lperwork[t,i]=hmese
+                #wperwork[t,i]=wageExogenous*lperwork[t,i]
+                wb[t,i]=sum(w[which(employer==i)])*lperwork[t,i]
+              }
+              lwork[t,which(employer==i)]=lperwork[t,i]
+              y_new[t,i]=y[t,i]-y_old[t,i]
+              y_valorek[t,i]=y_oldvalore[t,i]+y_new[t,i]*p[t,i]
+            }
+            if(t==1){
+              inv[t,i]=y_new[t,i]
+            }else{# a causa del fatto che i lavoratori sono unitari (non posso avere mezzo lavoratore), la produzione pu? non corrisopndere a quella desiderata, per questo inserisco sta roba
+              inv[t,i]=y_new[t,i]+inv[t-1,i]
+            }
+            #realsails[t,i]=storicoordini[t,i]*dk
+            #inv[t,i]= inv[t,i]-realsails[t,i]
+            # revenues[t,i]=realsails[t,i]*storicoprezzo[t,i]
+            
+          }
+        }
+        
+        
+        
+        
+        
+        
+        
+        # Vendite effettive dal settore K a C ####### 
+        #dopo il matching nel mercato del lavoro si verifica se effettivamente le imprese K riescono a produrre quanto ordinato (la produzione derivante dagli ordini dei periodi precedenti ? sicuramente soddisfatta perch? stiamo ipotizzando che ilavoratori non se ne vanno autonomamenete)
+        
+        for(i in 1:NFK){
+          if(inv[t,i]>0){
+            customC=which(indexFK[t,]==i)[kd[t,which(indexFK[t,]==i)]>0]          
+            if(length(customC>0)){
+              shufflecustomC=sample(length(customC))
+              for(j in 1:length(customC)){
+                indexCK=customC[shufflecustomC[j]]
+                if(isTRUE(all.equal(kd[t,indexCK]/dk,inv[t,i],tolerance=tol)) || (kd[t,indexCK]/dk)<inv[t,i]){
+                  sails[t,i]=sails[t,i]+kd[t,indexCK]/dk
+                  inv[t,i]=inv[t,i]-kd[t,indexCK]/dk
+                  kdordinatofeasible[t,indexCK]=kd[t,indexCK]
+                  kdordinatofeasiblestorico[t+dk,indexCK]=kd[t,indexCK]
+                  #questo sotto lo utilizzo solo per calcolare il valore residuo del capitale quando fallisco
+                  #kdordinatofeasiblenominalstorico[t+dk,indexCK]=kd[t,indexCK]*p[t,i]*(1+spam2*intrate[t]*leverage_gross[t,i])
+                  kdordinatofeasiblenominalstoricofull[t+dk,indexCK]=kd[t,indexCK]*p[t,i]*(1+spam2*intrate[t])
+                  kdfeasiblenominal[t+dk,indexCK]=kd[t,indexCK]*p[t,i]
+                  #kdfeasiblenominal_net[t+dk,indexCK]=kd[t,indexCK]*p[t,i]*perc_net[t,indexCK]
+                  kdfeasiblenominal_net[t+dk,indexCK]=(kd[t,indexCK]-cap_depreciated[t,indexCK])*p[t,i]   #kd[t,indexCK]*p[t,i]-ammortamento[t,i]
+                  kfutinstorico[t+dk+z,indexCK]=kd[t,indexCK]
+                  kfutinstorico_nominal[t+dk+z,indexCK]=kd[t,indexCK]*p[t,i]
+                  storicoordinifeasible[t+dk-1,i]=sails[t,i]
+                }else{
+                 # print("no enough capital prodution")
+                # print(t)
+                  #stop()
+                  sails[t,i]=sails[t,i]+inv[t,i]
+                  kdordinatofeasible[t,indexCK]=inv[t,i]*dk
+                  kdordinatofeasiblestorico[t+dk,indexCK]=inv[t,i]*dk
+                  #kdordinatofeasiblenominalstorico[t+dk,indexCK]=inv[t,i]*p[t,i]*dk*(1+spam2*intrate[t]*leverage_gross[t,i])
+                  kdordinatofeasiblenominalstoricofull[t+dk,indexCK]=inv[t,i]*p[t,i]*dk*(1+spam2*intrate[t])
+                  kfutinstorico[t+dk+z,indexCK]=inv[t,i]*dk
+                  kfutinstorico_nominal[t+dk+z,indexCK]=inv[t,i]*dk*p[t,i]
+                  kdfeasiblenominal[t+dk,indexCK]=inv[t,i]*p[t,i]*dk
+                  # if(kdfeasiblenominal[t+dk,indexCK]>=cap_depreciated[t,indexCK]){
+                  #   kdfeasiblenominal_net[t+dk,indexCK]=kdfeasiblenominal[t+dk,indexCK]-cap_depreciated[t,indexCK]
+                  # }else{
+                  #   kdfeasiblenominal_net[t+dk,indexCK]=0 
+                  # }
+                  kdfeasiblenominal_net[t+dk,indexCK]=(kd[t,indexCK]-cap_depreciated[t,indexCK])*p[t,i]  
+                  storicoordinifeasible[t+dk-1,i]=sails[t,i]
+                  inv[t,i]=0
+                  #print("aa")
+                  #print(t)
+                  #print(i)
+                  #print(indexCK)
+                  
+                }
+              }
+            }
+          }
+        }
+        kdfeasiblenominal_net2[t+dk,(NFK+1):NF]=kdfeasiblenominal[t+dk,(NFK+1):NF]-cap_depreciated_value_noint[t,(NFK+1):NF]
+        
+        #kdfeasiblenominal_net[t+dk,indexCK]=(kd[t,indexCK]-cap_depreciated[t,indexCK])*p[t,i]   #kd[t,indexCK]*p[t,i]-ammortamento[t,i]
+        
+        #  if(length(which(round(kdfeasiblenominal_net[t,],6)<0))>0){
+        #   print("kdfeasiblenominal_net negative")
+        #  pint(t)
+        #  stop()
+        #}
+        realsails[t+dk, 1:NFK]=sails[t, 1:NFK]*dk
+        #realsails[t,i]=storicoordinifeasible[t,i]*dk
+        revenues[t+dk, 1:NFK]=sails[t, 1:NFK]*dk*p[t, 1:NFK] #  storicoprezzo[t,i]
+        storicovaluesails[t+dk, 1:NFK]=sails[t, 1:NFK]*p[t, 1:NFK]    #revenues[t, 1:NFK]/dk
+        storicosales[t+dk, 1:NFK]=sails[t, 1:NFK]
+        
+        
+        
+        
+        if(FALSE){ 
+          u_l[t,(NFK+1):NF]=employees[t,(NFK+1):NF]*hmese*v/k[t,(NFK+1):NF]
+          u_l[t,(NFK+1):NF]=ifelse(is.nan(u_l[t,(NFK+1):NF])==TRUE,0,u_l[t,(NFK+1):NF])
+          
+          y[t,(NFK+1):NF]=ifelse(lrequired[t,(NFK+1):NF]==employees[t,(NFK+1):NF],pmin(y_d[t,(NFK+1):NF],k[t,(NFK+1):NF]*x[(NFK+1):NF]),pmin(u_l[t,(NFK+1):NF]*k[t,(NFK+1):NF]*x[(NFK+1):NF],k[t,(NFK+1):NF]*x[(NFK+1):NF]))
+          
+          lperwork[t,(NFK+1):NF]=ifelse(lrequired[t,(NFK+1):NF]==employees[t,(NFK+1):NF],lhrequired[t,(NFK+1):NF]/lrequired[t,(NFK+1):NF],hmese)
+          lperwork[t,(NFK+1):NF]=ifelse(is.nan(lperwork[t,(NFK+1):NF])==TRUE,0,lperwork[t,(NFK+1):NF])
+          
+          wb[t,(NFK+1):NF]=sum(w[which(employer==(NFK+1):NF)])*lperwork[t,(NFK+1):NF]    
+          
+          u_r[t,(NFK+1):NF]=y[t,(NFK+1):NF]/(k[t,(NFK+1):NF]*x[(NFK+1):NF]) 
+          u_r[t,(NFK+1):NF]=ifelse(is.nan(u_r[t,(NFK+1):NF])==TRUE,0,u_r[t,(NFK+1):NF])
+          
+          if(t==1){
+            inv[t,(NFK+1):NF]=y[t,(NFK+1):NF]
+          }else{
+            inv[t,(NFK+1):NF]=inv[t-1,(NFK+1):NF]+y[t,(NFK+1):NF]
+          }
+          
+        }
+        
+        
+        
+        
+        
+        #Produzione settore C ###
+        for(i in (NFK+1):NF){
+          if(lhrequired[t,i]>0){
+            if(lrequired[t,i]==employees[t,i]){
+              y[t,i]=min(y_d[t,i],k[t,i]*x[i])
+              lperwork[t,i]=lhrequired[t,i]/lrequired[t,i]
+              if(is.nan(lperwork[t,i])==TRUE){
+                lperwork[t,i]=0
+              }
+              # wperwork[t,i]=wageExogenous*lperwork[t,i]
+              wb[t,i]=sum(w[which(employer==i)])*lperwork[t,i]
+              u_l[t,i]=employees[t,i]*lperwork[t,i]*v/k[t,i]
+            }else{
+              u_l[t,i]=employees[t,i]*hmese*v/k[t,i]
+              if(is.nan(u_l[t,i])==TRUE){
+                u_l[t,i]=0
+              }
+              y[t,i]=min(u_l[t,i]*k[t,i]*x[i],k[t,i]*x[i])
+              lperwork[t,i]=hmese
+              #wperwork[t,i]=wageExogenous*lperwork[t,i]
+              wb[t,i]=sum(w[which(employer==i)])*lperwork[t,i]
+            }
+            #y[t,i]=min(u_l[t,i]*k[t,i]*x[i],ue_f[t,i]*k[t,i]*x[i])
+            
+            u_r[t,i]=y[t,i]/(k[t,i]*x[i])  #oppure min(u_l[i],ue[i])
+            k_used[t,i]=k[t,i]*u_r[t,i]
+            if(is.nan(u_r[t,i])==TRUE){
+              u_r[t,i]=0
+            }
+            if(t>=4){
+              u_medio[t,i]=weighted.mean(u_r[(t-3):t,i],wg,na.rm=FALSE)
+            }else{
+              u_medio[t,i]=u_r[t,i]
+            }
+            lwork[t,which(employer==i)]=lperwork[t,i]
+          }
+          if(t==1){
+            inv[t,i]=y[t,i]
+          }else{
+            inv[t,i]=inv[t-1,i]+y[t,i]
+          }
+          # k_sign[t,i]=alfa*u_r[t,i]*k[t,i]+(1-alfa)*k_sign[t-1,i]
+        }
+        
+        
+        #Calcolo ammontare sussidi alla disoccupazione    
+        Ubenefitantes[t]=length(which(unemp==1))*wgov[t]
+        #Ubenefit[t]=Ubenefitantes[t]
+        # verifica e aggiustamento della spesa pubblica (tramite variazione del valore del sussidio), nel caso in cui non si srispetta il vincolo di bilancio
+        if(FALSE){
+          controllo[t]=(G[t]+Ubenefitantes[t]+interestpaymentG[t]-ProfitCB[t]-Tax[t-1]*(1+gexTax[t]))/(GDP[t-1]*(1+gexGDP[t]))
+          if(controllo[t]>vincolo & vin=="si"){
+            #raschia il fondo del barile
+            Ubenefit[t]=max(0,GDP[t-1]*vincolo*(1+gexGDP[t])+Tax[t-1]*(1+gexTax[t])-interestpaymentG[t]+ProfitCB[t]-G[t]) 
+            wgov[t]= Ubenefit[t]/(length(which(unemp==1)))
+          }
+        }
+        
+        series=seq(100,800,40)
+        # Vincolo di bilancio pubblico #####  
+        if(t==1){
+          G[t]=Gin
+          Ubenefit[t]=Ubenefitantes[t]
+          
+        }else{
+          Ubenefit[t]=Ubenefitantes[t]
+          #G[t]=G[t-1]*(1+gpub)*(1+inflazione[t-1])
+          #Ubenefit[t]=Ubenefitantes[t]
+          
+          if(t>2){
+            G[t]=G[t-1]/priceindexC[t-2]*priceindexC[t-1]*(1+gpub)
+            
+            if(t>shock){
+              
+              G[t]=Gtot[shock-1]*priceindexC[t-1]/priceindexC[shock-1]-Ubenefit[t]-interestpaymentG[t]+ProfitCB[t]
+            }
+            # if(t %in% series){
+            #   G[t]=G[1]*1.05
+            # }else{
+            #   G[t]=G[1]
+            # }
+            # 
+            # if(t %in% series){
+            #   G[t]=G[t-1]*1.05
+            # }
+            
+            # Greal1[t]=G[t]/priceindexC[t-1]
+          }else{
+            G[t]=Gin    #G[t-1]/pc*priceindexC[t-1]*(1+gpub)
+          }
+          
+          #Ubenefit[t]=Ubenefitantes[t]
+          # G[t]=Gin/pc*priceindexC[t-1]
+          
+          
+          if(FALSE){
+            G[t]=Gflat[t]-Ubenefitantes[t]-interestpaymentG[t]
+            if(G[t]<0){
+              print("problemG")
+            }
+          }
+          perc_Ub[t]=Ubenefitantes[t]/(G[t]+Ubenefitantes[t])
+          if(G[t]==0){
+            perc_G[t]=perc_G[t-1]
+          }else{
+            perc_G[t]=G[t]/(G[t]+Ubenefitantes[t])
+            
+          }
+          control[t]=(G[t]+Ubenefitantes[t]+interestpaymentG[t]-ProfitCB[t]-Tax[t-1]*(1+gexTax[t]))/(GDP[t-1]*(1+gexGDP[t]))
+          # nel caso di vincolo di bilancio
+          #if(control[t]>vincolo & vin=="si" & t>200){
+          #   Deficitconsentito[t]=vincolo*GDP[t-1]*(1+gexGDP[t])
+          #   DeficitProg[t]=G[t]+Ubenefitantes[t]+interestpaymentG[t]-ProfitCB[t]-Tax[t-1]*(1+gexTax[t])
+          #   deltaD[t]=DeficitProg[t]-Deficitconsentito[t]
+          #   perc_G=G[t]/(G[t]+Ubenefitantes[t])
+          #   perc_Ub=Ubenefitantes[t]/(G[t]+Ubenefitantes[t])
+          #   G[t]=max(0,G[t]-perc_G*deltaD[t])
+          #   Ubenefit[t]=max(0,Ubenefitantes[t]-perc_Ub*deltaD[t])
+          #   wgov[t]=Ubenefit[t]/(length(which(unemp==1)))
+          #   #G[t]=max(0,GDP[t-1]*vincolo*(1+gexGDP[t])+Tax[t-1]*(1+gexTax[t])-interestpaymentG[t]+ProfitCB[t]-Nonemp[t-1]*(1+gexU[t])*wgov[t])
+          # #  }else if(t>10){
+          #  # SpesaconsentitaGU[t]=GDP[t-1]*(1+gexGDP[t])*vincolo-interestpaymentG[t]+ProfitCB[t]+Tax[t-1]*(1+gexTax[t])
+          #  # Ubenefit[t]=max(min(Ubenefitantes[t],SpesaconsentitaGU[t]),0)
+          #  # if(Ubenefit[t]>0){
+          #  # wgov[t]=Ubenefit[t]/(length(which(unemp==1)))
+          #  # G[t]=max(SpesaconsentitaGU[t]-Ubenefit[t],0)
+          #  # }else{
+          #   #  wgov[t]=0 
+          #   #  G[t]=0
+          #  # }
+          #  }
+          
+          if(vin=="si" & t>50){
+            SpesaconsentitaGU[t]=GDP[t-1]*(1+gexGDP[t])*vincolo-interestpaymentG[t]+ProfitCB[t]+Tax[t-1]*(1+gexTax[t])
+            if(G[t]+Ubenefitantes[t]>SpesaconsentitaGU[t]){
+              # perc_G[t]=G[t]/(G[t]+Ubenefitantes[t])
+              # perc_Ub[t]=Ubenefitantes[t]/(G[t]+Ubenefitantes[t])
+              G[t]=max(0,SpesaconsentitaGU[t]*perc_G[t])
+              Ubenefit[t]=max(0,SpesaconsentitaGU[t]*perc_Ub[t])
+              wgov[t]=Ubenefit[t]/(length(which(unemp==1)))
+            }else{
+              Ubenefit[t]=Ubenefitantes[t] #il sussidio rimane quello esogeno
+              
+              # G[t]=SpesaconsentitaGU[t]-Ubenefit[t]
+              
+            }
+          }
+        }
+        
+        
+        
+        
+        
+        
+        
+        #Reddito  degli agenti ###############
+        wage[t,1:N]=ifelse(unemp[1:N]==0,w[1:N]*lwork[t,1:N],wgov[t])
+        if(t>1){
+          for(j in t:(t+tpub-1)){
+            
+            interestBondHH[t,]=interestBondHH[t,]+bondstoricoHH[j,]*pubintratestorico[j]
+            
+          }
+          #interestBondHH[t,]=BondHH[t-1,]*bondinterest[t-1]
+          yh[t,1:N]=wage[t,1:N]+moneydeposit[t-1,1:N]*intratedeposit[t-1]+interestBondHH[t,]+div_H[t-1,1:N]+div_E[t-1,1:N]+div_B[t-1,1:N]
+          fin_income[t,]=moneydeposit[t-1,1:N]*intratedeposit[t-1]+interestBondHH[t,]
+          
+        }else{
+          yh[t,]=wage[t,1:N]
+        }
+        yhd[t,1:N]=yh[t,1:N]*(1-tau)
+        
+        Tax[t]=sum(yh[t,])*tau
+        
+        fin_income_tot[t]=sum(fin_income[t,])
+        
+        if(t>1){
+          StockLoanB[t]=StockLoanB[t-1]    
+        }
+        
+        
+        #Raccolta equity
+        
+        
+        
+        # Domanda di credito e offerta di equity da parte delle imprese C ####
+        #Il liverage desiderato (quando positivo) vale solo per il bene capitale.. per il pagamento dei salari si assume sempre pari a zero
+        for(i in (NFK+1):NF){
+          riservedes[t,i]= 0# eta*stockdebtF[t,i]
+          risreali[t,i]=min(riservedes[t,i],cashF[t,i])
+          cashavailablefunding[t,i]=0 #cashF[t,i]-risreali[t,i]
+          loandes[t,i]=kdfeasiblenominal[t,i]*lev_net
+          loandesw[t,i]=wb[t,i]*lev_w
+          if(cashavailablefunding[t,i]>=wb[t,i]*(1-lev_w)+kdfeasiblenominal[t,i]*(1-lev_net)){   
+            loandemandF[t,i]=loandemandF[t,i]+loandes[t,i]
+            shortloandemandF[t,i]=shortloandemandF[t,i]+loandesw[t,i]
+            #LoanB[t]=LoanB[t]+loandemandF[t,i]
+            leveragew[t,i]=lev_w
+            leverage_gross[t,i]=lev_net
+          }else if(cashavailablefunding[t,i]>=wb[t,i]*(1-lev_w)){
+            leveragew[t,i]=lev_w
+            shortloandemandF[t,i]=shortloandemandF[t,i]+loandesw[t,i]
+            leverage_gross[t,i]=(kdfeasiblenominal[t,i]-cashavailablefunding[t,i]+wb[t,i])/kdfeasiblenominal[t,i]
+            loandemandF[t,i]=loandemandF[t,i]+leverage_gross[t,i]*kdfeasiblenominal[t,i]
+          }else{
+            
+            leveragew[t,i]=(wb[t,i]-cashavailablefunding[t,i])/wb[t,i]
+            shortloandemandF[t,i]=shortloandemandF[t,i]+leveragew[t,i]*wb[t,i]
+            if(t>1){
+              Esupply[t,i]=(1-lev_net)*kdfeasiblenominal_net2[t+dk,i]   #kdfeasiblenominal_net[t+dk,i]
+              leverage_gross[t,i]=(kdfeasiblenominal[t,i]-E_received[t-1,i])/kdfeasiblenominal[t,i]         #lev_net
+              if(is.nan(leverage_gross[t,i])|| is.infinite(leverage_gross[t,i])){
+                leverage_gross[t,i]=0
+                lev_equity_gross[t,i]=0
+              }else{
+                lev_equity_gross[t,i]=1-leverage_gross[t,i]
+              }
+              loandemandF[t,i]=loandemandF[t,i]+leverage_gross[t,i]*kdfeasiblenominal[t,i]
+            }else{
+              leverage_gross[t,i]=(kdfeasiblenominal[t,i])/kdfeasiblenominal[t,i]         #lev_net
+              if(is.nan(leverage_gross[t,i]) || is.infinite(leverage_gross[t,i])){
+                leverage_gross[t,i]=0
+              }      
+              lev_equity_gross[t,i]=0
+              loandemandF[t,i]=loandemandF[t,i]+leverage_gross[t,i]*kdfeasiblenominal[t,i] 
+            }
+            
+            leveragestorico[t+z,i]=leverage_gross[t,i]
+            lev_equitystorico[t+z,i]=lev_equity_gross[t,i]
+            if(t<=dk){
+              lev_equitystorico[t+z,i]=0
+            }
+          }
+          storicoshortloandemandF[t+zs,i]=shortloandemandF[t,i]
+          loanstoricoF[t+z,i]=loandemandF[t,i]
+          loanstoricoFtot[t+z,i]=loandemandF[t,i]*(1+spam2*intrate[t])
+          
+          if(t==1){
+            # stockdebtF[t,i]=loandemandF[t,i]+shortloandemandF[t,i]
+            stockdebtFcapital[t,i]=loandemandF[t,i]
+            #  StockLoanB[t]= StockLoanB[t]+loandemandF[t,i]+shortloandemandF[t,i]
+          }else{
+            #stockdebtF[t,i]=stockdebtF[t-1,i]+loandemandF[t,i]+shortloandemandF[t,i]
+            stockdebtFcapital[t,i]=stockdebtFcapital[t-1,i]+loandemandF[t,i]
+            # StockLoanB[t]=StockLoanB[t]+loandemandF[t,i]+shortloandemandF[t,i]
+          }
+          kdordinatofeasiblenominalstorico_noint[t+dk,i]=kdordinatofeasible[t,i]*p[t,indexFK[t,i]]
+          kdordinatofeasiblenominalstorico[t+dk,i]=kdordinatofeasible[t,i]*p[t,indexFK[t,i]]*(1+spam2*intrate[t]*leverage_gross[t,i])
+          kdordinatofeasiblenominalstorico_loan[t+dk,i]=kdordinatofeasible[t,i]*leverage_gross[t,i]*p[t,indexFK[t,i]]*(1+spam2*intrate[t]) # è uguale al precedente
+          kfutinstorico_nominal_interest[t+dk+z,i]=kdordinatofeasible[t,i]*p[t,indexFK[t,i]]*(1+spam2*intrate[t]*leverage_gross[t,i])
+          
+          kdfeasiblenominal_net3[t+dk,(NFK+1):NF]=kdfeasiblenominal[t+dk,(NFK+1):NF]*(1+spam2*intrate[t]*leverage_gross[t,i])-cap_depreciated_value_int[t,(NFK+1):NF]
+          
+          #RATA FRANCESE per lo short loan (anticipo salari)
+          if(intrate[t]==0){
+            storicoratashort[t+zs,i]=shortloandemandF[t,i]/zs
+          }else{
+            storicoratashort[t+zs,i]=(shortloandemandF[t,i]*(1+intrateshort[t]*spamshort))/zs       #(shortloandemandF[t,i]*intrate[t])/(1-1/((1+intrate[t])^zs))
+            if(is.nan(storicoratashort[t+zs+1,i])==TRUE){
+              storicoratashort[t+zs,i]=0
+            }
+          }
+        }
+        
+        E_supply_tot[t]=sum(Esupply[t,])
+        E_supply_tot_abs[t]=sum(abs(Esupply[t,]))
+        if(E_supply_tot[t]<0){
+          #print("Esupply tot negativo")
+          #print(t)
+          # stop()
+        }
+        #Costi unitari e prezzi settore C #############
+        
+        l_n[t,(NFK+1):NF]=u_n*k[t,(NFK+1):NF]/v 
+        y_n[t,(NFK+1):NF]=k[t,(NFK+1):NF]*x[(NFK+1):NF]*u_n
+        #costi unitari al leverage_gross full
+        # unitcost[t,(NFK+1):NF]=round(wageaggregate[t]/(xexogenous*v)*(1+0*spamshort)+ammortamentofull[t,(NFK+1):NF]/y_n[t,(NFK+1):NF],3)   
+        
+        #unitcost[t,(NFK+1):NF]=round(wageaggregate[t]/(xexogenous*v)*(1+intrateshort[t]*spamshort)+ammortamentofull[t,(NFK+1):NF]/y_n[t,(NFK+1):NF],3)   
+        #costi unitari al leverage effettivo
+        unitcost[t,(NFK+1):NF]=(wageaggregate[t]/(xexogenous*v)*(1+leveragew[t,(NFK+1):NF]*intrateshort[t]*spamshort)+ammortamento[t,(NFK+1):NF]/y_n[t,(NFK+1):NF])   #da rivedere: ci va la composizione storica del costo del capitale quando inserisco prezzi variabili
+        
+        
+        unitcost[t,(NFK+1):NF]=ifelse(is.nan(unitcost[t,(NFK+1):NF])==TRUE,unitcost[t-1,(NFK+1):NF],unitcost[t,(NFK+1):NF])
+        
+        
+        
+        
+        
+        if(FALSE){
+          if(t>1){
+            markup[t,1:NF]=markup[t-1,1:NF]
+            ss=which(limabbassare[t-1,1:NFK]>limiteinvdec)
+            if(length(ss>0)){
+              stocvec=abs(rfoldnorm(length(ss),mean=mediaran,sd=sdran)-1)
+              markup[t,ss]=pmax(markupmin,markup[t-1,ss]*(1-stocvec))
+            }
+            #p[t,ss]=unitcost[t,ss]*(1+markup[t,ss])
+            dd=which(labordemandproblem[1:NFK]>=limlabor || limalzare[t-1,1:NFK]>limiteinvinc)
+            if(length(dd)>0){
+              stocvec=abs(rfoldnorm(length(dd),mean=mediaran,sd=sdran)-1)
+              markup[t,dd]=pmax(markupmin,markup[t-1,dd]*(1+stocvec))
+              #p[t,dd]=unitcost[t,dd]*(1+markup[t,dd])
+            }
+            ff=which(invliminf[t-1,1:NF]>=limiteinvdec)
+            if(length(ff)>0){
+              stocvec=abs(rfoldnorm(length(ff),mean=mediaran,sd=sdran)-1)
+              markup[t,ff]=pmax(markupmin,markup[t-1,ff]*(1-stocvec))
+            }
+            tt=which(invlimsup[t-1,1:NF]>=limiteinvinc && u_med[t-1,1:NF]>umin)
+            if(length(tt)>0){
+              stocvec=abs(rfoldnorm(length(tt),mean=mediaran,sd=sdran)-1)
+              markup[t,tt]=pmax(markupmin,markup[t-1,tt]*(1+stocvec))
+            }
+            p[t,1:NF]=unitcost[t,1:NF]*(1+markup[t,1:NF])
+            
+            
+          }else{
+            p[t,1:NF]=unitcost[t,1:NF]*(1+markup[t,1:NF])
+          }
+        }
+        
+        
+        if(FALSE){  
+          if(t>1){
+            # imprese K
+            for(i in 1:NFK){
+              
+              if(limabbassare[t-1,i]>limiteinvdec){ #| inv[t-1,i]>invt[t-1,i]){   #forse sarebbe meglio con le variazioni perch? magari si pu? accontentare di avere un market sahre molto basso: anzi no, uno si pu? accontentare un marketashare molto basso solo se ? consapevole di valere di meno per il consumatore, ma qui per il momento le imrpese sono uguali agli occhi dei consumatori eccetto per il prezzo 
+                
+                #stocnum=sample(seq(0.001,0.005,0.001),1)
+                stocnum=abs(rfoldnorm(1,mean=mediaran,sd=sdran)-1)
+                markup[t,i]=max(markupmin,markup[t-1,i]*(1-stocnum))
+                p[t,i]=unitcost[t,i]*(1+markup[t,i])
+                #pcup[t,i]=pmax(p[t-1,i],unitcost[t,i]+markupmin)    #la seconda opzione dopo OR sembrerebbe ridoondante in un mercato on spot, serve invece solo nel secondo periodo:non lo ? per il fatto che ho messo il primo periodo non on spot
+                # pfloor[t,i]=p[t-1,i]*(1-delta)
+                # pfloor[t,i]=pmax(unitcost[t,i]+markupmin,pfloor[t,i])
+                #p[t,i]=round(runif(1,pfloor[t,i],pcup[t,i]),1)
+              }else if(limalzare[t-1,i]>limiteinvinc){      #(inv[t-1,i]<invt[t-1,i]  | demandperfirmcapital[t-1,i]>realsails[t-1,i]){
+                #stocnum=sample(seq(0.001,0.005,0.001),1)
+                stocnum=abs(rfoldnorm(1,mean=mediaran,sd=sdran)-1)
+                markup[t,i]=max(markupmin,markup[t-1,i]*(1+stocnum))  
+                p[t,i]=unitcost[t,i]*(1+markup[t,i])
+                # pfloor[t,i]=p[t-1,i]       #prezzo a cui ? sicurissimo di vendere tutta la produzione (sotto il prezzo di mercato)
+                #pcup[t,i]=p[t-1,i]*(1+delta)
+                # p[t,i]=round(runif(1,pfloor[t,i],pcup[t,i]),1)
+              }else{  #ossia se il markeshare ? uguale ad uno:
+                markup[t,i]=markup[t-1,i]
+                p[t,i]=unitcost[t,i]*(1+markup[t,i])
+                #p[t,i]=p[t-1,i]   #quando le cose vanno bene, comunque sia l 'mipresa amplia il raggio di azione
+                #pfloor[t,i]=pfloor[t-1,i]*(1-delta)
+                #pfloor[t,i]=pmax(unitcost[t,i]+markupmin,pfloor[t,i])
+                #pcup[t,i]=pcup[t-1,i]*(1+delta)
+              }}
+            
+            #imprese consumer:
+            for(i in (NFK+1):NF){
+              if(invliminf[t-1,i]>=limiteinvdec & t>200){ #dovrei smorzare questo effetto oppure se vendire realizzate sono maggiori di autteso
+                #stocnum=sample(seq(0.001,0.005,0.001),1)
+                #markup[t,i]=max(markupmin,markup[t-1,i]-stocnum)
+                stocnum=abs(rfoldnorm(1,mean=mediaran,sd=sdran)-1)
+                markup[t,i]=max(markupmin,markup[t-1,i]*(1-stocnum))
+                p[t,i]=unitcost[t,i]*(1+markup[t,i])
+                invliminf[t,i]=0
+                invlimsup[t,i]=0
+              }else if(invlimsup[t-1,i]>=limiteinvinc & u_med[t-1,i]>umin & t>200){     #(u_l[t-1,i]==u_r[t-1,i] & inv[t-1,i]<invt[t-1,i]) ){# | (u_r[t-1,i]==1 & inv[t-1,i]<invt[t-1,i])){    #oppure quando non sono riuscito a trovare lavoratori liberi o sufficiente capitale
+                #stocnum=sample(seq(0.001,0.005,0.001),1)
+                #markup[t,i]=markup[t-1,i]+stocnum
+                stocnum=abs(rfoldnorm(1,mean=mediaran,sd=sdran)-1)
+                markup[t,i]=max(markupmin,markup[t-1,i]*(1+stocnum))
+                p[t,i]=unitcost[t,i]*(1+markup[t,i])
+                #pfloor[t,i]=p[t-1,i]       #prezzo a cui ? sicurissimo di vendere tutta la produzione (sotto il prezzo di mercato)
+                #pcup[t,i]=round(p[t-1,i]*(1+delta),2)
+                #p[t,i]=round(runif(1,pfloor[t,i],pcup[t,i]),2)
+                # }
+                invliminf[t,i]=0
+                invlimsup[t,i]=0
+              }else{
+                
+                markup[t,i]=markup[t-1,i]
+                p[t,i]=unitcost[t,i]*(1+markup[t,i])
+                invliminf[t,i]=invliminf[t-1,i]
+                invlimsup[t,i]=invlimsup[t-1,i]
+                # p[t,i]=p[t-1,i]   #quando le cose vanno bene, comunque sia l 'mipresa ampli il raggio di azione
+                # pfloor[t,i]=round(pfloor[t-1,i]*(1-delta),2)
+                # pfloor[t,i]=round(pmax(unitcost[t,i]+markupmin,pfloor[t,i]),2)
+                # pcup[t,i]=pcup[t-1,i]*(1+delta)
+              }
+            }
+          }else{
+            for(i in 1:NF){
+              p[t,i]=unitcost[t,i]*(1+markup[t,i])
+            }
+          }
+          
+        }   
+        
+        
+        if(t>10000){
+          for(i in (NFK+1):NF){
+            stocnum=abs(rfoldnorm(1,mean=mediaran,sd=sdran))
+            #mk[t]=0.8*mk[t-1]+0.2*mk[t-1]*(1-0.001*U[t-1]/UN)
+            markup[t,i]=mk[t]+stocnum*(marketshare[t-1,i]-mshare_medium[t-1,i])    #max(markupmin,markup[t-1,i]*(1-stocnum))
+            
+          }
+        }
+        p[t,(NFK+1):NF]=unitcost[t,(NFK+1):NF]*(1+markup[t,(NFK+1):NF])
+        
+        
+        
+        # Contabilit? & credito/debito consumatori ####
+        
+        if(t>1){
+          dinero[t,1:N]=yhd[t,1:N]+moneydeposit[t-1,1:N]-ratacredittot[t,1:N]  #rata credit complessiva dei tassi d'interesse
+          
+          effectivepaymentB[t,1:N]=ratacredittot[t,1:N]
+          hhdebt[t,1:N]=hhdebt[t-1,1:N]-ratacredit[t,1:N]
+          creditconsumptionB[t]=creditconsumptionB[t-1]-sum(ratacredit[t,1:N])
+          creditinterestpayment[t,1:N]=ratacredittot[t,1:N]-ratacredit[t,1:N]
+          capitalhh[t,1:N]=ratacredit[t,1:N]
+          crunch[t,1:N]=ifelse(crunch[t-1,1:N]==1 & ratacredit[t,1:N]==0,0,crunch[t-1,1:N])  # se finisco a pagare il debito ristritturato dopo il crunch allora torno a essere finanziato (dal periodo successivo ripspetto all'ultima rata) 
+          restr[1:N]=ifelse(crunch[t,1:N]==1 & ratacredit[t,1:N]==0,0,restr[1:N])  # azzero il numero di ristrutturazioni 
+          clim[1:N]=ifelse((crunch[t,1:N]==1 & ratacredit[t,1:N]==0) | (clim[1:N]>0 & ratacredit[t,1:N]==0),0,clim[1:N])  # azzero il numero di ristrutturazioni 
+          nonperformingloanbank[t]=nonperformingloanbank[t-1]
+          
+        }else{
+          dinero[t,1:N]=yhd[t,1:N]
+        }
+        
+        # chi ha fatto il revolver il periodo precedente ma non questo, il suo clim diviene automaticamente zero
+        if(t>tcredito){
+          for(indexH in 1:N){
+            #se entra in questo loop sicuramente alla fine il suo consumo sar? zero perch? la banca non gli presta i soldi per consumare
+            if(dinero[t,indexH]<0 & clim[indexH]<creditlim & crunch[t,indexH]==0){ #se pu? fare revolving
+              newcreditdemand[t,indexH]=abs(dinero[t,indexH])
+              stampa=sprintf("revolving t=%i index=%i",t,indexH)
+              print(stampa)
+              
+              # print(t)
+              # print(indexH)
+              #Double entry:
+              hhdebt[t,indexH]=hhdebt[t,indexH]+newcreditdemand[t,indexH]
+              creditconsumptionB[t]=creditconsumptionB[t]+newcreditdemand[t,indexH]
+              creditdemand[t,indexH]=creditdemand[t,indexH]+newcreditdemand[t,indexH]
+              #effectivepaymentB[t,indexH]=ratacredittot[t,indexH]
+              capitalhh[t,indexH]=ratacredit[t,indexH]
+              ratacredittot[(t+1):(t+zcredit),indexH]=ratacredittot[(t+1):(t+zcredit),indexH]+newcreditdemand[t,indexH]/zcredit*(1+intratecredit[t]*spamcredit)
+              ratacredit[(t+1):(t+zcredit),indexH]=ratacredit[(t+1):(t+zcredit),indexH]+newcreditdemand[t,indexH]/zcredit
+              dinero[t,indexH]=0
+              clim[indexH]=clim[indexH]+1
+            }else if(dinero[t,indexH]<0 & (crunch[t,indexH]==0 | restr[indexH]<limrestr)){  #se non pu? fare revolving e/ deve restrutturale e/o deve diventare non performinglona
+              # print("crunch1")
+              # print(t)
+              # print(indexH)
+              stampa=sprintf("crunch1 t=%i index=%i",t,indexH)
+              print(stampa)
+              crunch[t,indexH]=1
+              restr[indexH]=restr[indexH]+1
+              effectivepaymentB[t,indexH]=ratacredittot[t,indexH]+dinero[t,indexH]
+              inthh[t,indexH]=effectivepaymentB[t,indexH]*xintcredit
+              capitalhh[t,indexH]=effectivepaymentB[t,indexH]-inthh[t,indexH]
+              hhdebt[t,indexH]=hhdebt[t,indexH]+ratacredit[t,indexH]-capitalhh[t,indexH]
+              creditconsumptionB[t]=creditconsumptionB[t]+ratacredit[t,indexH]-capitalhh[t,indexH]
+              
+              creditinterestpayment[t,indexH]=inthh[t,indexH]
+              #ristrutturazione + ogni periodo 
+              ratacredittot[(t+1):(t+zcredit),indexH]=ratacredittot[(t+1):(t+zcredit),indexH]-dinero[t,indexH]/zcredit
+              ratacredit[(t+1):(t+zcredit),indexH]=ratacredit[(t+1):(t+zcredit),indexH]+(dinero[t,indexH]*(1-xintcredit))/zcredit        
+              dinero[t,indexH]=0
+              
+            }else if(dinero[t,indexH]<0 & crunch[t,indexH]==1 & restr[indexH]>=limrestr){
+              #salta tutto-> non performingloanuufficiale
+              print("funghiilconsumatore")
+              effectivepaymentB[t,indexH]=ratacredittot[t,indexH]+dinero[t,indexH]
+              inthh[t,indexH]=effectivepaymentB[t,indexH]*xintcredit
+              capitalhh[t,indexH]=effectivepaymentB[t,indexH]-inthh[t,indexH]
+              hhdebt[t,indexH]=hhdebt[t,indexH]+ratacredit[t,indexH]-capitalhh[t,indexH]
+              creditconsumptionB[t]=creditconsumptionB[t]+ratacredit[t,indexH]-capitalhh[t,indexH]
+              
+              creditinterestpayment[t,indexH]=inthh[t,indexH]
+              nonperformingloanhh[t:T,indexH]=nonperformingloanhh[t:T,indexH]+hhdebt[t,indexH]
+              nonperformingloanbank[t]=nonperformingloanbank[t]+hhdebt[t,indexH]
+              creditconsumptionB[t]=creditconsumptionB[t]-nonperformingloanbank[t]
+              hhdebt[t,indexH]=0
+              dinero[t,indexH]=0
+              restr[indexH]=0
+              crunch[t:(t+tcrunch),indexH]=1 #in teoria da ora fino alla fine non potr? avere mai un cash inferiore a zero, perch? non paga rate e quindi non entra mani nei loop precedenti
+              ratacredittot[(t+1):(t+zcredit),indexH]=0
+              ratacredit[(t+1):(t+zcredit),indexH]=0
+              
+            }
+          }
+        }
+        
+        Bankcreditinterest[t]=sum(creditinterestpayment[t,])
+        
+        # #fissazione paniere path-dependenth dei lavoratori
+        # if(t>2){
+        #   #pastbasket[t,1:Nwork]=bas*totrealconsumption[t-1,1:Nwork]+(1-bas)*totrealconsumption_sign[t-2,1:Nwork]
+        #   pastbasket[t,1:Nwork]=bas*totrealconsumption_des[t-1,1:Nwork]+(1-bas)*pastbasket[t-1,1:Nwork]
+        #   
+        # }else if(t==2){
+        #   pastbasket[t,1:Nwork]=pastbasket[t-1,1:Nwork]
+        # }else{
+        #   pastbasket[t,1:Nwork]=(yhd[t,1:Nwork]*cworker)/p[1,NF]
+        # }
+        # 
+        # # fissazione paniere path-dependenth dei capitalisti
+        # if(t>3){
+        #   #pastbasket[t,(Nwork+1):N]=bas*totrealconsumption[t-1,(Nwork+1):N]+(1-bas)*totrealconsumption_sign[t-2,(Nwork+1):N]
+        #   pastbasket[t,(Nwork+1):N]=bas*totrealconsumption_des[t-1,(Nwork+1):N]+(1-bas)*pastbasket[t-1,(Nwork+1):N]
+        #   
+        # }else if(t==3){
+        #   pastbasket[t,(Nwork+1):N]=totrealconsumption_des[t-1,(Nwork+1):N]
+        # }else if(t==2){
+        #   pastbasket[t,(Nwork+1):N]=(yhd[t-1,(Nwork+1):N]*ccap)/p[1,NF]
+        # }
+        # 
+        c_h[t,]=cworker #min(cworker-0.007*log(yhd[t,1:N]),1)
+        
+        # Consumption demand ######
+        if(t>1){
+          BondRepayed[t,1:N]=bondscadenzaHH[t,1:N]  
+          if(illusion==1){
+            #nominalconsumptiondemand[t,1:N]=yhd[t,1:N]*c_h[t,]+V[t-1,1:N]*cworkercash #(pmin(yhd[t,1:Nwork]*cworker+V[t-1,1:Nwork]*cworkercash,yhd[t,1:Nwork]+moneydeposit[t-1,1:Nwork]))
+            nominalconsumptiondemand[t,1:N]=pmin(yhd[t,1:N]*c_h[t,]+Vmarket[t-1,1:N]*cworkercash,moneydeposit[t-1,1:N]+yhd[t,1:N]-LoansHH[t-1,1:N]) #(pmin(yhd[t,1:Nwork]*cworker+V[t-1,1:Nwork]*cworkercash,yhd[t,1:Nwork]+moneydeposit[t-1,1:Nwork]))
+          }else{
+            nominalconsumptiondemand[t,1:N]=pmin(yhd[t,1:N]*c_h[t,]+Vef[t-1,1:N]*cworkercash,moneydeposit[t-1,1:N]+BondRepayed[t,1:N]+yhd[t,1:N]) #(pmin(yhd[t,1:Nwork]*cworker+V[t-1,1:Nwork]*cworkercash,yhd[t,1:Nwork]+moneydeposit[t-1,1:Nwork]))
+            
+          }
+        }else{
+          nominalconsumptiondemand[t,1:N]=yhd[t,1:N]*c_h[t,]
+        }
+        
+        totrealconsdemand[t]=sum(nominalconsumptiondemand[t,])/p[t,NF]
+        
+        
+        # spesa effettivamente realizzazta dal settore pubblico 
+        
+        if(TRUE){  
+          for(i in (NFK+1):NF){
+            realsails[t,i]=min(inv[t,i],(G[t]*alfak[t,i])/p[t,i])
+            inv[t,i]=inv[t,i]-realsails[t,i]
+            if(inv[t,i]==0){
+              Gef[t]=Gef[t]+realsails[t,i]*p[t,i]
+              Gfinito[t]=Gfinito[t]+1
+            }else{
+              Gef[t]=Gef[t]+realsails[t,i]*p[t,i]
+            }
+          }
+          
+        }
+        Gcons[t]=Gef[t]
+        Greal[t]=sum(realsails[t,which(cod==1)])
+        
+        
+        if(t==1 & equaldistribution==1){
+          Ncons=length(which(nominalconsumptiondemand[t,]>0))+Ncap
+          cel=ceiling(Ncons/NFC)
+          flo=floor(Ncons/NFC)
+          yy=(Ncons-NFC*cel)/(flo-cel)
+          xx=NFC-yy
+          indexconsumo=c(rep((NFK+1):(NFK+xx),each=cel),rep((xx+NFK+1):(NFK+xx+yy),each=flo))
+          
+          contar=1
+          for(i in 1:N){
+            
+            if(nominalconsumptiondemand[t,i]>0 | codclass[t,i]==1){
+              indexC[t,i]=indexconsumo[contar]
+              contar=contar+1
+            }
+            
+          }
+          
+          
+        }
+        
+        
+        
+        
+        
+        # Mathing mercato del consumo ####
+        if(sceltastocastica==1){
+          customer=which(nominalconsumptiondemand[t,]>0)
+          if(length(customer)>0){
+            if(length(customer)>1){
+              customershuffle=sample(customer)
+            }else{
+              customershuffle=customer
+            }
+            
+            for(i in 1:length(customer)){
+              indexH=customershuffle[i]
+              
+              q=as.integer(0)
+              while(q!=1){
+                availablesuppliers=which(cod==1 & inv[t,]>0)
+                if(length(availablesuppliers)>0){
+                  
+                  if(length(availablesuppliers)>1){
+                    indexC[t,indexH]=sample(availablesuppliers)[1]
+                  }else{
+                    indexC[t,indexH]=availablesuppliers
+                  }
+                  
+                  
+                  if(is.na(indexC[t,indexH])==TRUE){
+                    print(indexH)
+                    print(t)
+                    print("problemNA")
+                    stop()
+                  }
+                  realconsumptiondemand[t,indexH]=nominalconsumptiondemand[t,indexH]/p[t,indexC[t,indexH]]
+                  if(realconsumptiondemand[t,indexH]<=inv[t,indexC[t,indexH]]){
+                    realsails[t,indexC[t,indexH]]=realsails[t,indexC[t,indexH]]+realconsumptiondemand[t,indexH]
+                    inv[t,indexC[t,indexH]]=inv[t,indexC[t,indexH]]-realconsumptiondemand[t,indexH]
+                    #nominalresidualconsumptiondemand[indexH]=0
+                    nominalconsumptionexpenditure[t,indexH]=nominalconsumptionexpenditure[t,indexH]+realconsumptiondemand[t,indexH]*p[t,indexC[t,indexH]]
+                    totrealconsumption[t,indexH]=totrealconsumption[t,indexH]+realconsumptiondemand[t,indexH]
+                    realconsumptionmissing[t,indexH]=0
+                    nint[indexH]=nint[indexH]+1
+                    nominalconsumptiondemand[t,indexH]=0 #nominalconsumptiondemand[t,indexH]-nominalconsumptionexpenditure[t,indexH]
+                    #totrealconsumption_des[t,indexH]=totrealconsumption[t,indexH]
+                    q=1
+                  }else{
+                    realsails[t,indexC[t,indexH]]=realsails[t,indexC[t,indexH]]+inv[t,indexC[t,indexH]]
+                    nominalconsumptionexpenditure[t,indexH]=nominalconsumptionexpenditure[t,indexH]+inv[t,indexC[t,indexH]]*p[t,indexC[t,indexH]]
+                    #nominalresidualconsumptiondemand[indexH]=nominalresidualconsumptiondemand[indexH]-inv[t,indexC[t,indexH]]*p[t,indexC[t,indexH]]
+                    totrealconsumption[t,indexH]=totrealconsumption[t,indexH]+inv[t,indexC[t,indexH]]
+                    realconsumptionmissing[t,indexH]=realconsumptiondemand[t,indexH]-inv[t,indexC[t,indexH]]
+                    nominalconsumptiondemand[t,indexH]=nominalconsumptiondemand[t,indexH]-inv[t,indexC[t,indexH]]*p[t,indexC[t,indexH]] #nominalconsumptionexpenditure[t,indexH]
+                    inv[t,indexC[t,indexH]]=0 
+                    # inter[t,indexH]=inter[t,indexH]+1
+                    nint[indexH]=nint[indexH]+1
+                    # if(inter[t,indexH]==interazionilim){
+                    #   q=1
+                    # }
+                  }   
+                }else{
+                  q=1
+                  
+                }
+              } 
+            }
+            
+          }
+          
+        }else{
+          customer=which(nominalconsumptiondemand[t,]>0)
+          if(length(customer)>0){
+            if(length(customer)>1){
+              customershuffle=sample(customer)
+            }else{
+              customershuffle=customer
+            }
+            
+            for(i in 1:length(customer)){
+              indexH=customershuffle[i]
+              
+              q=as.integer(0)
+              while(q!=1){
+                availablesuppliers=which(cod==1 & inv[t,]>0)
+                if(length(availablesuppliers)>0){
+                  
+                  if(length(availablesuppliers)>=parmatchingconsumption){
+                    
+                    potentialsuppliers=sample(availablesuppliers)[1:parmatchingconsumption]
+                    minprice=min(p[t,potentialsuppliers])
+                    
+                  }else if(length(availablesuppliers)<parmatchingconsumption & length(availablesuppliers)>1){
+                    potentialsuppliers=sample(availablesuppliers)
+                    minprice=min(p[t,potentialsuppliers])
+                    
+                  }else{
+                    potentialsuppliers=availablesuppliers
+                    minprice=p[t,potentialsuppliers[1]]
+                    #print(potentialsuppliers)
+                  }
+                  
+                  
+                  if(t>1 && is.na(indexC[t-1,indexH])==FALSE && inv[t,indexC[t-1,indexH]]>0 && nint[indexH]==0){
+                    
+                    if(minprice<p[t,indexC[t-1,indexH]]){
+                      proba=1-e^(swic*((minprice-p[t,indexC[t-1,indexH]])/minprice))  #probabilit? di cambiare fornitore
+                      prob=c(proba,1-proba)
+                      sol=rbinom(1, size=1, prob=prob)
+                      if(sol==1){
+                        indexC[t,indexH]=potentialsuppliers[p[t,potentialsuppliers]==minprice][1]
+                      }else{
+                        indexC[t,indexH]=indexC[t-1,indexH]
+                      }
+                    }else{
+                      indexC[t,indexH]=indexC[t-1,indexH]
+                    }
+                  }else if(t==1 && equaldistribution==1 && nint[indexH]==0){
+                    
+                    
+                  }else{
+                    indexC[t,indexH]=potentialsuppliers[p[t,potentialsuppliers]==minprice][1]
+                  }
+                  
+                  if(is.na(indexC[t,indexH])==TRUE){
+                    print(indexH)
+                    print(t)
+                    print("problemNA")
+                    stop()
+                  }
+                  realconsumptiondemand[t,indexH]=nominalconsumptiondemand[t,indexH]/p[t,indexC[t,indexH]]
+                  if(realconsumptiondemand[t,indexH]<=inv[t,indexC[t,indexH]]){
+                    realsails[t,indexC[t,indexH]]=realsails[t,indexC[t,indexH]]+realconsumptiondemand[t,indexH]
+                    inv[t,indexC[t,indexH]]=inv[t,indexC[t,indexH]]-realconsumptiondemand[t,indexH]
+                    #nominalresidualconsumptiondemand[indexH]=0
+                    nominalconsumptionexpenditure[t,indexH]=nominalconsumptionexpenditure[t,indexH]+realconsumptiondemand[t,indexH]*p[t,indexC[t,indexH]]
+                    totrealconsumption[t,indexH]=totrealconsumption[t,indexH]+realconsumptiondemand[t,indexH]
+                    realconsumptionmissing[t,indexH]=0
+                    nint[indexH]=nint[indexH]+1
+                    nominalconsumptiondemand[t,indexH]=0 #nominalconsumptiondemand[t,indexH]-nominalconsumptionexpenditure[t,indexH]
+                    #totrealconsumption_des[t,indexH]=totrealconsumption[t,indexH]
+                    q=1
+                  }else{
+                    realsails[t,indexC[t,indexH]]=realsails[t,indexC[t,indexH]]+inv[t,indexC[t,indexH]]
+                    nominalconsumptionexpenditure[t,indexH]=nominalconsumptionexpenditure[t,indexH]+inv[t,indexC[t,indexH]]*p[t,indexC[t,indexH]]
+                    #nominalresidualconsumptiondemand[indexH]=nominalresidualconsumptiondemand[indexH]-inv[t,indexC[t,indexH]]*p[t,indexC[t,indexH]]
+                    totrealconsumption[t,indexH]=totrealconsumption[t,indexH]+inv[t,indexC[t,indexH]]
+                    realconsumptionmissing[t,indexH]=realconsumptiondemand[t,indexH]-inv[t,indexC[t,indexH]]
+                    nominalconsumptiondemand[t,indexH]=nominalconsumptiondemand[t,indexH]-inv[t,indexC[t,indexH]]*p[t,indexC[t,indexH]] #nominalconsumptionexpenditure[t,indexH]
+                    inv[t,indexC[t,indexH]]=0 
+                    # inter[t,indexH]=inter[t,indexH]+1
+                    nint[indexH]=nint[indexH]+1
+                    # if(inter[t,indexH]==interazionilim){
+                    #   q=1
+                    # }
+                  }   
+                }else{
+                  q=1
+                  
+                }
+              } 
+            }
+            
+          }
+        }
+        
+        #caloclo degli introiti delle imprese C
+        revenues[t,(NFK+1):NF]=realsails[t,(NFK+1):NF]*p[t,(NFK+1):NF]
+        
+        unsatisfieddemand[t]=sum(realconsumptionmissing[t,]) #Greal[t]+sum(realconsumptiondemand[t,])-sum(realsails[t,which(cod==1)])
+        #totmissing[t]=sum(realconsumptionmissing[t,])
+        
+        
+        # Controllo matching
+        if(round(sum(realconsumptionmissing[t,]),4)>0 & sum(inv[t,which(cod==1)])>0){
+          print("problem matching consumption")
+          errortrial=numtrial
+          save.image("/nobackup/bnldd/errormathccons.RData")    
+          stop()
+        }
+        
+        #check
+        if(isFALSE(all.equal(creditconsumptionB[t],sum(hhdebt[t,])))){
+          print("SFC problem credit")
+          stop()
+        }
+        if(nonperformingloanbank[t]!=sum(nonperformingloanhh[t,])){
+          print("SFC proble credit2")
+        }
+        
+        # andamento storico delle vendite con pesi decrescenti + consumo storico
+        # if(t==2){
+        #   demandperfirmconsumer_sign[t,(NFK+1):NF]=realsails[t,(NFK+1):NF]*beta+(1-beta)*realsails[t-1,(NFK+1):NF]
+        #   #totrealconsumption_sign[t,1:Nwork]=totrealconsumption[t,1:Nwork]*bas+(1-bas)*totrealconsumption[t-1,1:Nwork]
+        #   # totrealconsumption_sign[t,1:Nwork]=totrealconsumption_des[t,1:Nwork]*bas+(1-bas)*totrealconsumption_des[t-1,1:Nwork]
+        #   
+        # }else if(t>2){
+        #   demandperfirmconsumer_sign[t,(NFK+1):NF]=realsails[t,(NFK+1):NF]*beta+(1-beta)*demandperfirmconsumer_sign[t-1,(NFK+1):NF]
+        #   #totrealconsumption_sign[t,1:Nwork]=totrealconsumption[t,1:Nwork]*bas+(1-bas)*totrealconsumption_sign[t-1,1:Nwork]
+        #   #totrealconsumption_sign[t,1:Nwork]=totrealconsumption_des[t,1:Nwork]*bas+(1-bas)*totrealconsumption_sign[t-1,1:Nwork]
+        # }else{
+        #   demandperfirmconsumer_sign[t,(NFK+1):NF]=realsails[t,(NFK+1):NF]
+        #   #totrealconsumption_sign[t,1:Nwork]=totrealconsumption[t,1:Nwork]
+        #   #totrealconsumption_sign[t,1:Nwork]=totrealconsumption_des[t,1:Nwork]
+        #   
+        # }
+        
+        
+        
+        
+        
+        
+        #aggiornamento dei contatori sui periodi consecutivi in cui le scorte sono state diverse dal desiderato (serve per la fissazione dei markup)
+        if(TRUE){ 
+          for(i in (NFK+1):NF){
+            
+            if(is.nan(inv[t,i]/realsails[t,i])==TRUE){
+              invlimsup[t,i]=0 #invlimsup[t-1,i]
+              invliminf[t,i]=0 #invlimsup[t-1,i]
+            }else{
+              if((inv[t,i]/realsails[t,i])<sigma*(1-flexsigma)){
+                if(t==1){
+                  invlimsup[t,i]=1
+                  invliminf[t,i]=0 
+                }else{  
+                  invlimsup[t,i]=invlimsup[t,i]+1
+                  invliminf[t,i]=0
+                }
+              }else{
+                if(t==1){
+                  invliminf[t,i]=1
+                  invlimsup[t,i]=0 
+                }else{
+                  invliminf[t,i]=invliminf[t,i]+1
+                  invlimsup[t,i]=0
+                }
+              }
+            } 
+          }
+        }
+        
+        
+        
+        
+        # Aggiornamento ricchezza e depositi #########    
+        if(t>1){
+          # moneydeposit[t,(Nwork+1):N]=moneydeposit[t-1,(Nwork+1):N]+yhd[t-1,(Nwork+1):N]-nominalconsumptionexpenditure[t,(Nwork+1):N]
+          #moneydeposit[t,1:Nwork]=moneydeposit[t-1,1:Nwork]+yhd[t,1:Nwork]-nominalconsumptionexpenditure[t,1:Nwork]+creditdemand[t,1:Nwork]
+          # V[t,1:Nwork]=moneydeposit[t-1,1:Nwork]-hhdebt[t,1:Nwork]+creditdemand[t,1:Nwork]+EquityH[t-1,1:Nwork]+BondDemand[t-1,1:Nwork]+yhd[t,1:Nwork]-nominalconsumptionexpenditure[t,1:Nwork]
+          V[t,1:N]=V[t-1,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]  #moneydeposit[t-1,1:N]+EquityH[t-1,1:N]+(n_bondHH[t-1,1:N]-n_bondscadenzaHH[t,1:N])*pbond[t]+bondscadenzaHH[t,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+          Vef[t,1:N]=Vef[t-1,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]   #moneydeposit[t-1,1:N]+EquityH[t-1,1:N]+BondHHnominal[t-1,1:N]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+          
+          BondRepayed[t,1:N]=bondscadenzaHH[t,1:N]  #momentaneamente ho messo che durano un periodo
+          Liquidityend[t,1:N]=moneydeposit[t-1,1:N]+BondRepayed[t,1:N]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-LoansHH[t-1,]
+          # V[t,1:N]=V[t-1,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]  #moneydeposit[t-1,1:N]+EquityH[t-1,1:N]+(n_bondHH[t-1,1:N]-n_bondscadenzaHH[t,1:N])*pbond[t]+bondscadenzaHH[t,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+          #Vef[t,1:N]=V[t-1,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]   #moneydeposit[t-1,1:N]+EquityH[t-1,1:N]+BondHHnominal[t-1,1:N]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+        }else{
+          #moneydeposit[t,1:Nwork]=yhd[t,1:Nwork]-nominalconsumptionexpenditure[t,1:Nwork]
+          V[t,1:N]=yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+          Vef[t,1:N]=yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+          
+        }
+        if(length(which(round(Liquidityend[t,],6)<0))>0){
+          print("liquidity negative")
+          stop()
+        }
+        
+        # if(length(which(round(moneydeposit[t,1:N],3)<0))>0){
+        #   print("problemnegativedeposit")
+        #   print(t)
+        #   ss=which(moneydeposit[t,1:N]<0)
+        #   print(ss)
+        #   print(moneydeposit[t,ss])
+        # }
+        # 
+        
+        
+        cashF[t,1:NFK]=cashF[t,1:NFK]+revenues[t,1:NFK]-wb[t,1:NFK]-servicedebtFtot[t,1:NFK] 
+        #   if(round(cashF[t,i],4)<0){
+        #     print("problemcashFk")
+        #     print(cashF[t,i])
+        #   }
+        scoperto[t,1:NFK]=ifelse(cashF[t,1:NFK]<0,-cashF[t,1:NFK],0)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        #####BILANCIO PUBBLICO #################
+        Gef[t]=Gef[t]+Ubenefit[t]
+        Gtot[t]=Gef[t]+interestpaymentG[t]-ProfitCB[t]
+        
+        deficitG[t]=Gef[t]-Tax[t]-ProfitCB[t]+interestpaymentG[t]
+        saldoprimario[t]=Gef[t]-Tax[t]
+        saldosecondario[t]=Gef[t]-Tax[t]-ProfitCB[t]+interestpaymentG[t]
+        if(t>1){
+          cashG[t]=cashG[t-1]+Tax[t]-Gef[t]-bondrepayment[t]-interestpaymentG[t]+ProfitCB[t]
+        }else{
+          cashG[t]=Tax[t]-Gef[t]-bondrepayment[t]-interestpaymentG[t]+ProfitCB[t]
+        }
+        #Bond Government Supply
+        if(cashG[t]<0){
+          bond[t]=-cashG[t]
+          bondstorico[t+tpub]=bond[t]
+          bondscadenza[t+tpub]= bond[t]
+          new_n_bond[t]=bond[t]/pbond[t]
+          n_bondscadenza[t+tpub]=new_n_bond[t]
+          
+        }
+        
+        
+        cashG[t]=cashG[t]+bond[t]
+        if(t>1){
+          # stockdebtG[t]=stockdebtG[t-1]+bond[t]-bondrepayment[t]
+          stockdebtG[t]=(n_bond[t-1]-n_bondscadenza[t])*pbond[t]+bond[t]
+          n_bond[t]=n_bond[t-1]+new_n_bond[t]-n_bondscadenza[t]
+          
+        }else{
+          stockdebtG[t]=bond[t]
+          n_bond[t]=new_n_bond[t]
+        }
+        
+        
+        # Scelte di portafoglio #############
+        
+        
+        #lavoratori
+        if(t>1){
+          if(illusion==1){# se c'è illusion, utilizzano la ricchezza di mecato per deteminare quanti bond vogliono,
+            BondDemand[t,1:N]=pmax(0,l_00_l[1:N]*Vmarket[t-1,1:N]+l_01_l[1:N]*Vmarket[t-1,1:N]*intratedeposit[t]+l_02_l[1:N]*r_ex_equity[t]*gamma_e*Vmarket[t-1,1:N]+l_03_l[1:N]*Vmarket[t-1,1:N]*bondinterest[t]+l_04_l[1:N]*yhd[t,1:N])
+            BondDemand[t,1:N]=pmax(0,BondDemand[t,1:N]-(n_bondHH[t-1,]-n_bondscadenzaHH[t,])*pbond[t])
+            Ed[t,1:N]=pmax(0,l_10_l[1:N]*Vmarket[t-1,1:N]+l_11_l[1:N]*Vmarket[t-1,1:N]*intratedeposit[t]+l_12_l[1:N]*r_ex_equity[t]*Vmarket[t-1,1:N]+l_13_l[1:N]*Vmarket[t-1,1:N]*bondinterest[t]+l_14_l[1:N]*yhd[t,1:N])
+            Md[t,1:N]=pmax(0,l_20_l[1:N]*Vmarket[t-1,1:N]+l_21_l[1:N]*Vmarket[t-1,1:N]*intratedeposit[t]+l_22_l[1:N]*r_ex_equity[t]*Vmarket[t-1,1:N]+l_23_l[1:N]*Vmarket[t-1,1:N]*bondinterest[t]+l_24_l[1:N]*yhd[t,1:N])
+          }else{
+            BondDemand[t,1:N]=pmax(0,l_00_l[1:N]*Vef[t-1,1:N]+l_01_l[1:N]*Vef[t-1,1:N]*intratedeposit[t]+l_02_l[1:N]*r_ex_equity[t]*Vef[t-1,1:N]+l_03_l[1:N]*Vef[t-1,1:N]*bondinterest[t]+l_04_l[1:N]*yhd[t,1:N])
+            BondDemand[t,1:N]=pmax(0,BondDemand[t,1:N]-(BondHHnominal[t-1,1:N]-bondscadenzaHH[t,1:N]))
+            Ed[t,1:N]=pmax(0,l_10_l[1:N]*Vef[t-1,1:N]+l_11_l[1:N]*Vef[t-1,1:N]*intratedeposit[t]+l_12_l[1:N]*r_ex_equity[t]*Vef[t-1,1:N]+l_13_l[1:N]*Vef[t-1,1:N]*bondinterest[t]+l_14_l[1:N]*yhd[t,1:N])
+            Md[t,1:N]=pmax(0,l_20_l[1:N]*Vef[t-1,1:N]+l_21_l[1:N]*Vef[t-1,1:N]*intratedeposit[t]+l_22_l[1:N]*r_ex_equity[t]*Vef[t-1,1:N]+l_23_l[1:N]*Vef[t-1,1:N]*bondinterest[t]+l_24_l[1:N]*yhd[t,1:N])
+          }
+        }
+        #BondDemand[t,1:N]=pmin(BondDemand[t,1:N],Liquidityend[t,1:N])
+        if(length(which(round(BondDemand[t,],6)<0))>0){
+          print("problem bond demand negative")
+          stop()
+        }
+        BondDemand[t,]=pmin(Liquidityend[t,],BondDemand[t,])
+        if(length(which(round(BondDemand[t,],5)>round(Liquidityend[t,],5))>0)){
+          print(t)
+          print("Bond Demand > liquidity")
+          stop()
+        }
+        
+        #forse a liquidity end ci de+vo sottrarre anche i nuovi soldi che voglio utilizzare per comprare i nu+ovi bond, oppure posso dare precede+nza a equity     
+        
+        #Mercato dei bond e dell'equity ############
+        bondtoprivate[t]=bond[t]
+        BondDemand_tot[t]=sum(BondDemand[t,])
+        weigth_bond[t,]=BondDemand[t,]/BondDemand_tot[t]
+        
+        if(BondDemand_tot[t]<=bondtoprivate[t]){
+          bondtoprivate[t]=max(0,BondDemand_tot[t])
+        }else{
+          BondDemand_tot[t]=bondtoprivate[t]
+          # rationing bonds
+          BondDemand[t,]=weigth_bond[t,]*BondDemand_tot[t]
+        }
+        
+        BondHHtot[t]=sum(BondDemand[t,])
+        newbondHH[t,]=BondDemand[t,]/pbond[t]
+        bondscadenzaHH[t+tpub,]= BondDemand[t,]
+        bondstoricoHH[t+tpub,]=BondDemand[t,]
+        n_bondscadenzaHH[t+tpub,]=newbondHH[t,]
+        if(t>1){
+          BondHHnominal[t,]=BondDemand[t,]+BondHHnominal[t-1,]-bondscadenzaHH[t,]
+          BondHH[t,]=(n_bondHH[t-1,]-n_bondscadenzaHH[t,])*pbond[t]+BondDemand[t,]
+          n_bondHH[t,]=n_bondHH[t-1,]+newbondHH[t,]-n_bondscadenzaHH[t,]
+        }else{
+          BondHH[t,]= BondDemand[t,] 
+          BondHHnominal[t,]=BondDemand[t,] 
+          n_bondHH[t,]=newbondHH[t,]
+        }
+        
+        if(t>1){
+          for(j in (t+1):(t+tpub)){
+            
+            nominalvaluebondHH[t,]=nominalvaluebondHH[t,]+bondstoricoHH[j,]
+            
+          }}
+        totalnominalvaluebondHH[t]=sum(nominalvaluebondHH[t,])
+        
+        if(householdcompranoequity==1){
+          if(E_supply_tot[t]!=0){
+            weigth_E[t,(NFK+1):NF]=Esupply[t,(NFK+1):NF]/E_supply_tot_abs[t]      #Esupply[t,(NFK+1):NF]/E_supply_tot[t]   #solo per l 'offerta
+            share_positive_eq[t,which(Esupply[t,]>0)]=Esupply[t,which(Esupply[t,]>0)]/(sum(Esupply[t,which(Esupply[t,]>0)]))
+          }
+          
+          E_demand_tot[t]=sum(Ed[t,])
+          if(E_demand_tot[t]>0){
+            weighties[t,]=Ed[t,]/E_demand_tot[t]
+            E_demanded_liquidity= pmin(E_supply_tot[t]* weighties[t,],Ed[t,])
+            New_equity_purchasable[t,]=pmin(Liquidityend[t, ]-BondDemand[t,],E_demanded_liquidity)
+            
+            if(E_supply_tot[t]>0){
+              zeros_vector <- numeric(N)  
+              New_equity_purchasable[t,]=pmax(zeros_vector,New_equity_purchasable[t,])
+              lista_equity_vincolati[[t]]<- which(New_equity_purchasable[t,]<E_demanded_liquidity)
+              if(length(which(New_equity_purchasable[t,]<E_demanded_liquidity))>0){
+                #print("vinculated euqity for liquidity")
+                #stop()
+              }
+              if(length(which(round(New_equity_purchasable[t,],6)<0)>0)){
+                print("New_equity_purchasable negativo")
+                print(t)
+                stop()
+              }
+              Ed[t,] = ifelse( E_demanded_liquidity > (Liquidityend[t, ]-BondDemand[t,]),Ed[t, ]-(E_demanded_liquidity - Liquidityend[t, ]+BondDemand[t,]),Ed[t, ])
+              
+              if(round(E_supply_tot[t],8)>round(sum(New_equity_purchasable[t,]),8)){
+                print("here we are")
+                print(t)
+                if(t>550) {
+                  # stop()
+                }
+                delsta_Esupply_constraint=E_supply_tot[t]-sum(New_equity_purchasable[t,])
+                Esupply[t,which(Esupply[t,]>0)]=Esupply[t,which(Esupply[t,]>0)]-delsta_Esupply_constraint*share_positive_eq[t,which(Esupply[t,]>0)]
+                E_supply_tot[t]=sum(New_equity_purchasable[t,])      
+                E_supply_tot_abs[t]=sum(abs(Esupply[t,]))
+                weigth_E[t,(NFK+1):NF]=Esupply[t,(NFK+1):NF]/E_supply_tot_abs[t]      #Esupply[t,(NFK+1):NF]/E_supply_tot[t]   #solo per l 'offerta
+              }
+            }
+            E_demand_tot[t]=sum(Ed[t,])
+            weighties[t,]=Ed[t,]/E_demand_tot[t]
+          }else{
+            E_supply_tot[t]=0 
+            E_received_tot[t]=0
+            Esupply[t,]=0
+            E_supply_tot_abs[t]=0
+            New_equity_purchasable[t,]=numeric(N)
+            if(householdcompranoequity==1){
+              #print("problem nessuno domanda equity")   #in realtà si potrebbe e dovrebbe inserire una intravendita di euqity tra le imprese (se una cede e una vende azionni, ma alla fine questa eventualità non capita mai senza che le famiglie anche domandino equity)
+            }
+          }
+          if(t>1 && equities_tot[t-1]>0){
+            if(E_demand_tot[t]>=E_supply_tot[t]){
+              p_e[t]=(E_demand_tot[t]-E_supply_tot[t])/equities_tot[t-1]
+              if(p_e[t]>0){
+                equities_tot[t]=equities_tot[t-1]+E_supply_tot[t]/p_e[t]
+              }else{
+                print("problem negative equity price")
+                stop()
+              }
+              E_received_tot[t]=p_e[t]*(equities_tot[t]-equities_tot[t-1])
+              if( E_received_tot[t]<0 && E_supply_tot[t]>0){
+                print("problem_equityraccoltanegativa1") #in toeria non dovrebbe succedere mai?
+                stop()
+              }
+            }else if(E_demand_tot[t]>0){
+              print("offerta di equity superiore alla capacit? di domanda")
+              print(t)
+              # stop()
+              E_supply_tot[t]=E_demand_tot[t]*0.99999999999999
+              p_e[t]=(E_demand_tot[t]-E_supply_tot[t])/equities_tot[t-1]
+              equities_tot[t]=equities_tot[t-1]+E_supply_tot[t]/p_e[t]
+              E_received_tot[t]=p_e[t]*(equities_tot[t]-equities_tot[t-1])
+            }
+            
+            equities_tot_new[t]=equities_tot[t]-equities_tot[t-1]
+            equities[t,]=Ed[t,]/p_e[t]  #equities[t-1,]+share_new_equity[t,]*equities_tot_new[t]  
+            weigth_equities[t,]=equities[t,]/equities_tot[t]
+            
+          }else{
+            #questa parte del codice serve solo per il primo acquisto di equity (quindi qui la supply di equity non può essere negativa perchè le imrpese ancora non hanno venduto azioni, quindi by definition non possono eventualmente riaquistarle)
+            if(householdcompranoequity==1){
+              print("absent number of equities in the previous period")
+              print(t)
+            }
+            if(E_demand_tot[t]>0){
+              E_received_tot[t]=min(E_supply_tot[t],E_demand_tot[t])
+              E_supply_tot_abs[t]=E_received_tot[t]
+              p_e[t]=10
+              equities_tot[t]=E_supply_tot[t]/p_e[t]  
+              equities_tot_new[t]=equities_tot[t]
+              Ed[t,]=weighties[t,]*E_received_tot[t]
+              if(equities_tot[t]>0){
+                equities[t,]=Ed[t,]/p_e[t]
+              }else{
+                equities[t,]=0
+              }
+            }
+          }
+          
+          # Distribuzione equity tra le imrpese
+          
+          if(t>1){
+            equities_F[t,(NFK+1):NF]=equities_F[t-1,(NFK+1):NF]+Esupply[t,(NFK+1):NF]/p_e[t]    #weigth_E[t,(NFK+1):NF]*abs(equities_tot_new[t])
+          }
+          E_received[t,(NFK+1):NF]= weigth_E[t,(NFK+1):NF]*E_supply_tot_abs[t] 
+          cashF[t,(NFK+1):NF]= cashF[t,(NFK+1):NF]+E_received[t,(NFK+1):NF]
+          loandemandF[t,(NFK+1):NF]=ifelse(E_received[t,(NFK+1):NF]<0,loandemandF[t,(NFK+1):NF]+abs(E_received[t,(NFK+1):NF]),loandemandF[t,(NFK+1):NF])
+          loanstoricoF[t+z,(NFK+1):NF]=ifelse(E_received[t,(NFK+1):NF]<0,loanstoricoF[t+z,(NFK+1):NF]+abs(E_received[t,(NFK+1):NF]),loanstoricoF[t+z,(NFK+1):NF])
+          loanstoricoFtot[t+z,(NFK+1):NF]=ifelse(E_received[t,(NFK+1):NF]<0,loanstoricoFtot[t+z,(NFK+1):NF]+abs(E_received[t,(NFK+1):NF])*(1+spam2*intrate[t]),loanstoricoFtot[t+z,(NFK+1):NF])
+          E_tot[t]=equities_tot[t]*p_e[t]
+          EquityH[t,]=p_e[t]*equities[t,]
+          if(E_tot[t]>0){
+            share_E_H[t,]=EquityH[t,]/E_tot[t]
+          }
+          Fondodaequity[t,(NFK+1):NF]=Fondodaequity[t,(NFK+1):NF]+E_received[t,(NFK+1):NF]
+          if(t>1){
+            capitalgainsHH[t,]=(p_e[t]-p_e[t-1])*(equities[t-1,])  #(pbond[t]-pbond[t-1])*(n_bondHH[t-1,]-n_bondscadenzaHH[t,])+
+          }
+        }
+        
+        if(t>1){
+          capitalgainsbond[t,]=(pbond[t]-pbond[t-1,])*n_bondHH[t-1,]
+          stockdebtF[t,(NFK+1):NF]=stockdebtF[t-1,(NFK+1):NF]+loandemandF[t,(NFK+1):NF]+shortloandemandF[t,(NFK+1):NF]
+        }else{
+          stockdebtF[t,(NFK+1):NF]=loandemandF[t,(NFK+1):NF]+shortloandemandF[t,(NFK+1):NF]
+        }
+        StockLoanB[t]=StockLoanB[t]+sum(loandemandF[t,])+sum(shortloandemandF[t,])
+        
+        # Calcolo del servizio del debito totale delle imprese C ######
+        
+        # inizio a pagare la rata  nel periodo stesso in cui lo contraggo
+        for(i in (NFK+1):NF){
+          
+          #contare=1/zs
+          for(j in (t+1):(t+zs)){
+            if (storicoratashort[j,i]>0){
+              servicedebtFtot[t,i]=servicedebtFtot[t,i]+storicoratashort[j,i]
+              interestpaymentF[t,i]=interestpaymentF[t,i]+(storicoratashort[j,i]-storicoshortloandemandF[j,i]/zs)
+            }
+            # contare=contare+1/zs
+          }
+          #RATA con evoluzione ammortamento + SHORT TERM LOAN per pagamento salari
+          #Sistema con quote di rimborso decrescenti (coerenti con l'ammortamento)
+          g=1/z
+          for(j in (t+1):(t+z)){
+            if(loanstoricoF[j,i]>0){
+              servicedebtFtot[t,i]=servicedebtFtot[t,i]+loanstoricoFtot[j,i]*g/spam
+              servidebtcapital[t,i]=servidebtcapital[t,i]+loanstoricoFtot[j,i]*g/spam
+              interestpaymentF[t,i]=interestpaymentF[t,i]+(loanstoricoFtot[j,i]-loanstoricoF[j,i])*g/spam
+            }
+            g=g+1/z
+          }
+          
+          contare=1/zp
+          
+          for(j in (t+1):(t+zp)){
+            if(storicooverdtraft[j,i]>0){
+              servicedebtFtot[t,i]=servicedebtFtot[t,i]+storicorataoverdraft[j,i]
+              interestpaymentF[t,i]=interestpaymentF[t,i]+(storicorataoverdraft[j,i]-storicooverdtraft[j,i]/zp)
+            }
+            contare=contare+1/zp
+          }
+          
+          servicedebtF[t,i]=servicedebtFtot[t,i]-interestpaymentF[t,i]
+          
+          # calcolo cassa dell'impresa
+          cashF[t,i]=cashF[t,i]+loandemandF[t,i]+shortloandemandF[t,i]+revenues[t,i]-wb[t,i]-kdfeasiblenominal[t,i]-servicedebtFtot[t,i]  #-ponzis[(t-1),i]                                                                                                         
+          if(t>1){
+            Fondodaequity[t,i]=Fondodaequity[t-1,i]-E_received[t-1,i]
+          }
+          
+          #Calcolo del valore residuo del capitale (serve per il calcolo della ricchezza netta delle imprese)
+          szz=1/z
+          for(j in (t+1):(t+z)){
+            
+            ammresiduo[t,i]= ammresiduo[t,i]+storicoIN[j,i]*szz
+            szz=szz+1/z
+          }
+          #valutazione situazione finanziaria dell' impresa: nel caso in cui ? insolvente si verifica se ha i requisiti per chiedere un ulteriore prestito altrimenti va in bancarotta
+          if(cashF[t,i]>=0){
+            stockdebtF[t,i]=stockdebtF[t,i]-servicedebtF[t,i]
+            stockdebtFcapital[t,i]=stockdebtFcapital[t,i]-servidebtcapital[t,i]
+            StockLoanB[t]=StockLoanB[t]-servicedebtF[t,i]
+            nponzi[i]=0
+          }else{
+            NW[t,i]=kvalue[t,i]+(cashF[t,i]+servicedebtFtot[t,i])-stockdebtF[t,i]+inv[t,i]*unitcost[t,i]
+            Residualvalue[t,i]=kvalue[t,i]+inv[t,i]*unitcost[t,i]
+            if(t<startingponzi | NW[t,i]>0){
+              overdraftdemand[t,i]=abs(cashF[t,i])
+              ponzis[t,i]=overdraftdemand[t,i]
+              storicooverdtraft[t+zp+1,i]=overdraftdemand[t,i]
+              
+              if(intrate[t]==0){
+                storicorataoverdraft[t+zp+1,i]=overdraftdemand[t,i]/zp
+              }else{
+                storicorataoverdraft[t+zp+1,i]=(overdraftdemand[t,i]*(1+intrateoverdraft[t]*spamoverdraft))/zp       #(overdraftdemand[t,i]*intrate[t])/(1-1/((1+intrate[t])^zp))
+                if(is.nan(storicorataoverdraft[t+zp+1,i])==TRUE){
+                  storicorataoverdraft[t+zp+1,i]=0
+                }
+              }
+              
+              #loanstoricoF[t+z+1,i]=loandemandF[t+1,i]
+              cashF[t,i]=0  #cosi sono riuscito effettivametne a sostenere il servizio al debito
+              stockdebtF[t,i]= stockdebtF[t,i]-servicedebtF[t,i]+overdraftdemand[t,i]
+              StockLoanB[t]=StockLoanB[t]-servicedebtF[t,i]+overdraftdemand[t,i]
+              if(t>=startingponzi){
+                ponzi[t,i]="ponzi"
+                nponzi[i]=nponzi[i]+1
+              }
+              
+            }else{
+              
+              if(nponzi[i]<limponzi){
+                # stampa=sprintf("ponzi2 t=%i index=%i",t,i)
+                # print(stampa)
+                
+                overdraftdemand[t,i]=abs(cashF[t,i])
+                ponzis[t,i]=overdraftdemand[t,i]
+                #loanstoricoF[t+z+1,i]=loandemandF[t+1,i]
+                storicooverdtraft[t+zp+1,i]=overdraftdemand[t,i]
+                if(intrate[t]==0){
+                  storicorataoverdraft[t+zp+1,i]=overdraftdemand[t,i]/zp
+                }else{
+                  storicorataoverdraft[t+zp+1,i]=(overdraftdemand[t,i]*(1+intrateoverdraft[t]*spamoverdraft))/zp       #(overdraftdemand[t,i]*intrate[t])/(1-1/((1+intrate[t])^zp))
+                  if(is.nan(storicorataoverdraft[t+zp+1,i])==TRUE){
+                    storicorataoverdraft[t+zp+1,i]=0
+                  }
+                }
+                cashF[t,i]=0
+                ponzi[t,i]="ponzi"
+                nponzi[i]=nponzi[i]+1
+                stockdebtF[t,i]= stockdebtF[t,i]-servicedebtF[t,i]+overdraftdemand[t,i]
+                StockLoanB[t]=StockLoanB[t]-servicedebtF[t,i]+overdraftdemand[t,i]
+                
+              }else{
+                bancarotta[t,i]=1
+                nbancarottac=nbancarottac+1
+                #print(i)
+                #print(t)
+                cashF[t,i]=cashF[t,i]+servicedebtFtot[t,i]
+                interestpaymentF[t,i]=0
+                servicedebtFtot[t,i]=0
+                servicedebtF[t,i]=0
+                restituzioneparziale[t,i]=min(cashF[t,i],stockdebtF[t,i])   #inanzitutto restituisco parte del debito
+                cashF[t,i]=cashF[t,i]-restituzioneparziale[t,i]
+                if(cashF[t,i]!=0){
+                  print("problemaCashF2")
+                }
+                stockdebtF[t,i]=stockdebtF[t,i]-restituzioneparziale[t,i]
+                StockLoanB[t]=StockLoanB[t]-restituzioneparziale[t,i]
+                PerditaB[t]=PerditaB[t]+stockdebtF[t,i]
+                #AZZERO LA STORIA RIMANENTE DELLE RATE DEI DEBITI CHE AVREI DOVUTO PAGARE IN FUTURO (questa impresa viene sostituita nel prossimo periodo con una che parte da 0..rimane solo il capitale )
+                nponzi[i]=0
+                stockdebtF[t,i]=0
+                loanstoricoF[,i]=0
+                storicoratashort[,i]=0
+                loanstoricoFtot[,i]=0
+                storicooverdtraft[,i]=0
+                storicorataoverdraft[,i]=0
+                
+              }
+              
+            }
+            
+          }
+        }
+        
+        # 
+        if(t>1){
+          inv_cont[t,1:NFK]=inv_cont[t-1,1:NFK]+y[t,1:NFK]-realsails[t,1:NFK]
+        }else{
+          inv_cont[t,1:NFK]=y[t,1:NFK]-realsails[t,1:NFK]
+        }
+        valueinv[t,1:NFK]=inv_cont[t,1:NFK]*wageaggregate[t]/phi
+        if(t>1){
+          for(i in (NFK+1):NF){
+            if(inv[t-1,i]>=realsails[t,i]){
+              valueinv[t,i]=(valueinv[t-1,i]/inv[t-1,i])*(inv[t-1,i]-realsails[t,i])+y[t,i]*unitcost[t,i]
+              valueinv2[t,i]=(valueinv2[t-1,i]/inv[t-1,i])*(inv[t-1,i]-realsails[t,i])+y[t,i]*wageaggregate[t]/(xexogenous*v)
+            }else{
+              valueinv[t,i]=inv[t,i]*unitcost[t,i]
+              valueinv2[t,i]=inv[t,i]*wageaggregate[t]/(xexogenous*v)
+            }}
+        }else{
+          valueinv[t,i]=inv[t,i]*unitcost[t,i]
+          valueinv2[t,i]=inv[t,i]*wageaggregate[t]/(xexogenous*v)
+          
+        }
+        
+        if(t>1){
+          deltainv2[t,(NFK+1):NF]=valueinv[t,(NFK+1):NF]-valueinv[t-1,(NFK+1):NF]
+        }else{
+          deltainv2[t,(NFK+1):NF]=valueinv[t,(NFK+1):NF]
+        }
+        
+        
+        if(t>1){
+          currentcost[1:NFK]=wb[t-1,1:NFK] 
+        }
+        
+        
+        currentcost[(NFK+1):NF]=ammortamento[t,(NFK+1):NF]+wb[t,(NFK+1):NF]*(1+intrateshort[t]*leveragew[t,(NFK+1):NF]*spamshort)
+        currentcost_profit[(NFK+1):NF]=ammortamento_profit[t,(NFK+1):NF]+wb[t,(NFK+1):NF]*(1+intrateshort[t]*leveragew[t,(NFK+1):NF]*spamshort)
+        
+        #Profitti  ####
+        for(j in t:(t+dk-1)){
+          contrevenues[t,1:NFK]=contrevenues[t,1:NFK]+storicovaluesails[j,1:NFK]
+          contsails[t,1:NFK]=contsails[t,1:NFK]+storicosales[j,1:NFK]
+        }
+        
+        profit[t,1:NFK]=pmax(0,contrevenues[t,1:NFK]-(wageaggregate[t]*contsails[t,1:NFK]/phi))  ##vale solo se i salari non variano nel tempo
+        profit[t,(NFK+1):NF]=revenues[t,(NFK+1):NF]-currentcost[(NFK+1):NF]+deltainv2[t,(NFK+1):NF]
+        profit_fe[t,(NFK+1):NF]=revenues[t,(NFK+1):NF]-currentcost_profit[(NFK+1):NF]+deltainv2[t,(NFK+1):NF]
+        profit_fe[t,1:NFK]=profit[t,1:NFK]
+        profit_fe[t,1:NF]=pmax(0,profit_fe[t,1:NF])
+        
+        div[t,1:NF]=ifelse(bancarotta[t,1:NF]==0,pmax(0,pmin(cashF[t,1:NF],profit_fe[t,1:NF]*teta)),0)
+        # div_to_H[t,(NFK+1):NF]=wighted_leverage[t,(NFK+1):NF]*div[t,(NFK+1):NF]
+        if(t>1){
+          div_to_E[t,(NFK+1):NF]=ifelse(equities_F[t-1,(NFK+1):NF]>0,div[t,(NFK+1):NF]*(equities_F[t-1,(NFK+1):NF]*p_e[t-1])/(stockdebtF[t-1,(NFK+1):NF]+equities_F[t-1,(NFK+1):NF]*p_e[t-1]),0)    #div[t,(NFK+1):NF]*wighted_leverage_equity[t,(NFK+1):NF]*div[t,(NFK+1):NF]
+        }
+        div_to_H[t,(NFK+1):NF]=div[t,(NFK+1):NF]-div_to_E[t,(NFK+1):NF]
+        div_to_H[t,1:NFK]=div[t,1:NFK]
+        retained_profit[t,1:NF]=ifelse(div[t,1:NF]< profit_fe[t,1:NF],profit_fe[t,1:NF]-div[t,1:NF],0)
+        if(t>1){
+          retained_profit_cum[t,1:NF]=retained_profit_cum[t-1,1:NF]+retained_profit[t,1:NF]
+        }else{
+          retained_profit_cum[t,1:NF]=retained_profit[t,1:NF]
+        }
+        rate_of_profit[t]=sum(profit[t,(NFK+1):NF])/sum(kvalue_used[t,(NFK+1):NF])
+        if(is.nan(rate_of_profit[t])){
+          rate_of_profit[t]=0
+        }
+        div_tot_F[t]=sum(div_to_H[t,])
+        if(centralized_distribution_dividends==0){
+        }else{
+          div_H[t,]=share_H[]*div_tot_F[t]
+        }
+        ### Distribuzione centralizzata dei profitti da equity ########
+        div_E_tot[t]=sum(div_to_E[t,(NFK+1):NF])
+        if(t>1){
+          div_E[t,]=div_E_tot[t]*share_E_H[t-1,]
+        }
+        cashF[t,1:NF]=cashF[t,1:NF]-div[t,1:NF]
+        
+        if((all.equal(sum(div_E[t,]),div_E_tot[t]))==FALSE){
+          print("problem sommatoria diividendi da equity")
+          stop()
+        }
+        if((all.equal(sum(div_H[t,]), sum(div_to_H[t,])))==FALSE){
+          print("problem sommatoria diividendi da propriet H")
+          stop()
+        }
+        
+        
+        if(t>3){
+          r_equity[t]=div_E_tot[t]/E_tot[t]   #se metto il mercato equity nquesto periodo diventa: div_E_tot[t-1]/E_tot[t-1]
+          
+          r_ex_equity[t]=r_ex_equity[t-1]+beta1*(r_equity[t]-r_ex_equity[t-1])
+          
+          if(is.nan(r_ex_equity[t])){
+            r_ex_equity[t]=rate_of_profit[t]
+          }
+        }else if(t==2){
+          r_equity[t]=div_E_tot[t]/E_tot[t]
+          r_ex_equity[t]=r_equity[t]
+          if(is.nan(r_ex_equity[t])){
+            r_ex_equity[t]=rate_of_profit[t]
+          }
+        }
+        
+        
+        
+        # Calcolo di tutti i flussi finanziari
+        if(t>1){
+          interestdepositworker[t]=sum(moneydeposit[t-1,which(codclass==0)])*intratedeposit[t-1]  #oppure Moneydeposit_worker[t]*intratedeposit[t]
+          interestdepositpayB[t]=interestdepositworker[t]+intratedeposit[t-1]*sum(moneydeposit[t-1,which(codclass==1)])+Advances[t-1]*advanceinterest[t-1]     #Moneydeposit_worker[t-1]*intratedeposit[t-1]
+          profitB[t]=sum(interestpaymentF[t,])-interestdepositpayB[t]+Hb2[t-1]*intratedeposit[t-1]+Bankcreditinterest[t]
+        }else{
+          profitB[t]=sum(interestpaymentF[t,])-interestdepositpayB[t] 
+        }
+        
+        if(t>1){
+          cashB[t]=cashB[t-1]+profitB[t]
+        }else{
+          cashB[t]=profitB[t]
+        }
+        
+        if(round(cashB[t],4)<0){
+          # print("problemBank")
+          # print(t)
+          AdvB[t]=-profitB[t]
+          #AdvB[t]=max(-profitB[t]-Hb2[t-1],0)
+          #deltaRes[t]=min(-profitB[t],Hb2[t-1])
+          profitB[t]=0
+          cashB[t]=0
+        }
+        
+        divB[t]=min(cashB[t],profitB[t])
+        cashB[t]=cashB[t]-divB[t]
+        
+        if(divbank=="equal"){
+          # divpercapB[t]=divB[t]/N
+          # divperworkB[t]=divB[t]/N
+          div_B[t,]=divB[t]/N
+        }else{
+          # divpercapB[t]=divB[t]/Ncap 
+          # divperworkB[t]=0
+          div_B[t,]=divB[t]*share_B[]
+        }
+        #si ipotizza che i profitti della banca siano distribuiti equamente tra i capitalisti che possiedono anche le imprese)
+        
+        
+        
+        
+        
+        if(t>1){
+          V[t,]=V[t-1,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]+capitalgainsHH[t,]+capitalgainsbond[t,] #moneydeposit[t-1,1:N]+EquityH[t-1,1:N]+(n_bondHH[t-1,1:N]-n_bondscadenzaHH[t,1:N])*pbond[t]+bondscadenzaHH[t,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+          Vef[t,]=Vef[t-1,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]   #moneydeposit[t-1,1:N]+EquityH[t-1,1:N]+BondHHnominal[t-1,1:N]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+        }else{
+          V[t,]=yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]  #moneydeposit[t-1,1:N]+EquityH[t-1,1:N]+(n_bondHH[t-1,1:N]-n_bondscadenzaHH[t,1:N])*pbond[t]+bondscadenzaHH[t,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+          Vef[t,]=yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]   #moneydeposit[t-1,1:N]+EquityH[t-1,1:N]+BondHHnominal[t-1,1:N]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-hhdebt[t,1:N]+creditdemand[t,1:N]
+        }
+        
+        if(t>1){
+          if(illusion==1){
+            moneydeposit[t,]=moneydeposit[t-1,]+yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-(equities[t,]-equities[t-1,])*p_e[t]-BondDemand[t,]+BondRepayed[t,]-LoansHH[t-1,]  # V[t,]-BondHH[t,]-EquityH[t,] 
+            
+          }else{
+            moneydeposit[t,]=Vef[t,]-BondHHnominal[t,]-EquityH[t,]-LoansHH[t-1,]#ci vanno messi anche i prestiti al consumo
+          }
+        }else{
+          moneydeposit[t,]=yhd[t,1:N]-nominalconsumptionexpenditure[t,1:N]-(equities[t,])*p_e[t]-BondDemand[t,]   #V[t,]-BondHH[t,]-EquityH[t,]
+          
+        }
+        Vmarket[t,]=BondHH[t,]+EquityH[t,]+moneydeposit[t,]
+        controlling=mapply(function(x, y) all.equal(x, y) == TRUE, Vmarket[t,], V[t,])
+        if(length(which(controlling==FALSE))>0){
+          # print("problem riccehzza")
+          #stop()
+        }
+        if(t>1){
+          capitalgainsHH_on_wealth[t,]= capitalgainsHH[t,]/V[t,]
+          capitalgains_bond_on_wealth[t,]= capitalgainsbond[t,]/V[t,]
+          capitalgainsHH_on_wealth_market[t,]= capitalgainsHH[t,]/Vmarket[t,]
+          capitalgains_bond_on_wealth_market[t,]= capitalgainsbond[t,]/Vmarket[t,]
+          g_wealth[t,]=(V[t,]-V[t-1,])/V[t-1,]
+          g_wealth_market[t,]=(Vmarket[t,]-Vmarket[t-1,])/Vmarket[t-1,]
+          capitalgains_bond_on_wealth_delay[t,]=capitalgainsbond[t,]/V[t-1,]
+          capitalgainsHH_on_wealth_delay[t,]=capitalgainsHH[t,]/V[t-1,]
+        }
+        
+        if(length(which(round(moneydeposit[t,],6)<0))>0){
+          print("money deposits negativo")
+          # stop()
+          LoansHH[t,]=ifelse(moneydeposit[t,]<0,-moneydeposit[t,],0)
+          moneydeposit[t,]=ifelse(moneydeposit[t,]<0,0,moneydeposit[t,])
+          
+          
+        }
+        
+        StockLoanB[t]=StockLoanB[t]+sum(LoansHH[t,])-sum(LoansHH[t-1,])
+        Moneydeposit_worker[t]=sum(moneydeposit[t,which(codclass[]==0)])  
+        Moneydeposit_cap[t]=sum(moneydeposit[t,which(codclass[]==1)])
+        cashHwmoment[t]=Moneydeposit_worker[t]+sum(div_E[t,which(codclass[]==0)])+sum(div_H[t,which(codclass[]==0)])
+        cashHcapmoment[t]=Moneydeposit_cap[t]+sum(div_E[t,which(codclass[]==1)])+sum(div_H[t,which(codclass[]==1)])+divB[t]
+        
+        
+        
+        
+        
+        #cALCOLO Net Wealth dell'impresa dopo la distribuzione dei profitti e mercati equities 
+        
+        NW[t,1:NFK]=cashF[t,1:NFK]-stockdebtF[t,1:NFK]+valueinv[t,1:NFK] 
+        NW[t,(NFK+1):NF]=kvalue[t,(NFK+1):NF]+cashF[t,(NFK+1):NF]-stockdebtF[t,(NFK+1):NF]+valueinv[t,(NFK+1):NF]-equities_F[t,(NFK+1):NF]*p_e[t]# la ricchezza nettta in questo caso dovrebbe corrsiponde a profitti trattenuti pi? equity
+        
+        # Contabilità SFC ######
+        #La banca Centrale rifinanzia la Banca per l ammontare perso, la banca prende questo ammontare e lo mette nelle riserve della bance entrale( le concede un prestito)
+        deltaAdvances[t]=PerditaB[t]+AdvB[t]
+        if(t>1){
+          Advances[t]=Advances[t-1]+deltaAdvances[t]     #sum(stockdebtF[t,])-Deposit[t]
+          deltanonperformingcredit[t]=nonperformingloanbank[t]-nonperformingloanbank[t-1]
+        }else{
+          Advances[t]=deltaAdvances[t]
+          deltanonperformingcredit[t]=nonperformingloanbank[t]
+        }
+        #la baca mette a riserva tali advances  -> AUMENTO LO STOCK DI PRESTITI DETENUTO( CHE TRORNA AL LIVELLO PREFALLIMENTO)
+        #StockLoanB[t]=StockLoanB[t]+deltaAdvances[t]
+        # if(t>1){
+        #  ReservesCB[t]=ReservesCB[t-1]+deltaAdvances[t]
+        #}else{
+        #  ReservesCB[t]=deltaAdvances[t]
+        #}
+        LoanBDemand[t]=sum(loandemandF[t,])+sum(overdraftdemand[t,])+sum(shortloandemandF[t,])+sum(LoansHH[t,])
+        
+        Deposit[t]=sum(cashF[t,])+cashHcapmoment[t]+cashHwmoment[t]+cashG[t]
+        Deposit2[t]=Moneydeposit_cap[t]+Moneydeposit_worker[t]
+        
+        
+        
+        
+        if(t>1){
+          deltaDeposit[t]=Deposit[t]-Deposit[t-1]
+          deltaDeposit2[t]=Deposit2[t]-Deposit2[t-1]
+        }else{
+          deltaDeposit[t]=Deposit[t]
+          deltaDeposit2[t]=Deposit2[t]
+        }
+        
+        
+        if(t>1){
+          if((round(Deposit[t],4))<(round(StockLoanB[t]+creditconsumptionB[t],4))){
+            
+            print("advances alarm")
+            stop()
+            #print(t)
+            #print(t)
+            #Advances[t]=Advances[t-1]+loandemandF[t]-servicedebtF[t]-deltaDeposit[t]
+          }else{
+            
+            Hb[t]=round(Hb[t-1]+deltaDeposit[t]-(LoanBDemand[t]+sum(creditdemand[t,])-sum(LoansHH[t-1,])-sum(capitalhh[t,])-sum(servicedebtF[t,])-sum(restituzioneparziale[t,])-sum(servicericapital[t,])-PerditaB[t]-deltaRes[t]),4)
+            #Hb[t]= Hb[t-1]+deltaDeposit[t]-(loandemandF[t]-servicedebtF[t])
+            #Hb[t]=Deposit[t]-StockLoanB[t]
+          }
+          if(Deposit2[t]>(StockLoanB[t]+nonperformingloanbank[t]+creditconsumptionB[t])){
+            ## in teoria dovrei fare sta cosa anche per le advances perche' non vanno calcolare sui depositi che considarno il reddito, cmq non lo faccio perche tanto sono sempre uguali a zeroo, dal momento che c e una banca sola e non ce cash circolante 
+            Hb2[t]=Deposit2[t-1]+deltaDeposit2[t]-deltaRes[t]-StockLoanB[t]-creditconsumptionB[t]-nonperformingloanbank[t] # metto a riserva la differenza tra i depositi e i presiti, per avere un quantitativo suficente per apgare i tassi d interesse... in realta potrei mettere di meno perche i tassi d interesse sui presitit sono maggiori de depositi
+            # in teoria questo andrebbe fatto sempre, perche se i depositi in un periodo risultano minori dello stock di debito, invece che chiedere advances, riduco le riserve.. ma comunque in quel caso dal momento ce sto consideranod lo stock non e vero
+            
+            #se i depositi attivi sono maggiori dei prestti, metto a riserva in modo da creare un entrata per pagare gli interessi (questa e' una tecnica rigidad nel senso che no nsfrutto il gioco sul differenziale dei tassi d interesse per coprirmi) 
+          }else{
+            Hb2[t]=Hb2[t-1] 
+          }
+          
+        }else{
+          if(Deposit[t]<(StockLoanB[t]+nonperformingloanbank[t]+creditconsumptionB[t])){
+            print("problema advances")
+            print(t)
+            #Advances[t]=loandemandF[t]-servicedebtF[t]-deltaDeposit[t]
+          }else{
+            Hb[t]=deltaDeposit[t]-(LoanBDemand[t]+sum(creditdemand[t,])-sum(capitalhh[t,])-sum(servicedebtF[t,])-sum(restituzioneparziale[t,])-sum(servicericapital[t,])-PerditaB[t])
+            
+          }
+          if(Deposit2[t]>(StockLoanB[t]+nonperformingloanbank[t]+creditconsumptionB[t])){
+            Hb2[t]=deltaDeposit2[t]-(LoanBDemand[t]+sum(creditdemand[t,])-sum(capitalhh[t,])-sum(servicedebtF[t,])-sum(restituzioneparziale[t,])-sum(servicericapital[t,])-PerditaB[t])  #se i depositi attivi sono maggiori dei prestti, metto a riserva in modo da creare un entrata per pagare gli interessi (questa e' una tecnica rigidad nel senso che no nsfrutto il gioco sul differenziale dei tassi d interesse per coprirmi) 
+          }else{
+            Hb2[t]=0    
+          }
+          
+        }
+        
+        
+        if(length(which(round(cashF[t,(NFK+1):NF],5)<0))>0){
+          print("cashF negativi")
+          stop()
+        }
+        
+        # BondDemand_cap[t]=sum(BondDemand[t,which(codclass[]==1)])
+        # if(t>1){
+        #   deltaAdvances[t]=Advances[t]-Advances[t-1]
+        # }else{
+        #   deltaAdvances[t]=Advances[t] 
+        # }
+        # bond residui acquistati dalla banca centrale 
+        BuyBond_CB[t]=bond[t]-bondtoprivate[t]   #BondDemand_cap[t]
+        if(round(BuyBond_CB[t],4)<0){
+          print("ProblemBondCB")
+        }
+        bondscadenzaCB[t+tpub]=BuyBond_CB[t]
+        bondstoricoCB[t+tpub]=BuyBond_CB[t]
+        newbondCB[t]=BuyBond_CB[t]/pbond[t]
+        n_bondscadenzaCB[t+tpub]=newbondCB[t]
+        #Bilancio CB
+        if(t>1){
+          BondRepayed_CB[t]=bondscadenzaCB[t]
+          BondCB[t]=BondCB[t-1]+BuyBond_CB[t]-BondRepayed_CB[t]
+          # BondCB[t]=(n_bondCB[t-1]-n_bondscadenzaCB[t])*pbond[t]+BuyBond_CB[t]
+          n_bondCB[t]=n_bondCB[t-1]+newbondCB[t]-n_bondscadenzaCB[t]
+          HPM[t]=HPM[t-1]+BuyBond_CB[t]-BondRepayed_CB[t]+Advances[t]-Advances[t-1]  #Ci va il valore nominale dei bond
+          deltaH[t]=HPM[t]-HPM[t-1]
+        }else{
+          BondCB[t]=BuyBond_CB[t]
+          n_bondCB[t]=newbondCB[t]
+          HPM[t]=BuyBond_CB[t]+Advances[t]+PerditaB[t]
+          deltaH[t]=HPM[t]
+        }
+        
+        
+        
+        
+        # NW_workers[t]=cashHwmoment[t]-sum(hhdebt[t,])-sum(nonperformingloanhh[t,])+sum(EquityH[t,1:Nwork])+sum(BondDemand[t,1:Nwork])
+        #  NW_cap[t]=cashHcapmoment[t]+sum(BondDemand[t,which(codclass[]==1)])+sum(EquityH[t,(Nwork+1):N])
+        NWB[t]=StockLoanB[t]-Deposit[t]+Hb[t]-Advances[t]+creditconsumptionB[t]+sum(nonperformingloanhh[t,]) # da controllare
+        NWG[t]=cashG[t]-stockdebtG[t]
+        NWCB[t]=BondCB[t]-Hb[t]+Advances[t]
+        #NWCB[t]=BondCB[t]+Advances[t]-Hb[t]   #praticamente tutta la moneta creata dalla banca centrale ? detenuta sotto forma di riserve dalla banca stessa, che [ appunto la differenza tra is suoi depositit e prestit]
+        
+        
+        # cash flow della banca
+        if(t>1){
+          CFB[t]=CFB[t-1]+sum(servicedebtFtot[t,])-sum(servicedebtFtot[t,which(bancarotta[t,]==1)])-LoanBDemand[t]+deltaDeposit[t]+sum(restituzioneparziale[t,])+sum(servicericapital[t,])-sum(creditdemand[t,])+sum(effectivepaymentB[t,])
+        }else{
+          CFB[t]=sum(servicedebtFtot[t,])-LoanBDemand[t]+deltaDeposit[t]++sum(restituzioneparziale[t,])
+        }
+        #if(CFB[t]<0){
+        # if(t>1){
+        #Advances[t]=Advances[t-1]-CFB[t]  #LoanBDemand[t]-servicedebtFtot[t]-deltaDeposit[t]
+        #}else{
+        #  Advances[t]=-CFB[t]
+        #}
+        #}
+        
+        
+        
+        #Controlli
+        redundant[t]=round(Deposit[t]+sum(EquityH[t,])-E_tot[t]-StockLoanB[t]-nonperformingloanbank[t]+PerditaB[t]-creditconsumptionB[t]-BondCB[t]-Advances[t]+NWCB[t],4)
+        redundant2[t]=round(Hb[t]-BondCB[t],3)
+        if(round(redundant[t],2)!=0 | length(which(round(inv[t,],3)<0))>0){
+          print("problem sfc or inventories")
+          print(t)
+          # errortrial=numtrial
+          #save.image("/nobackup/bnldd/errorsfc.RData")    
+          stop()
+        }
+        
+        if(round(redundant2[t],2)!=0){
+          print("problem sfc redundat 2")
+          print(t)
+          stop()
+        }
+        #calcolo dei marketshare realizzati ndalle imprese capital
+        totalrealsailsK=sum(realsails[t,which(cod==0)])
+        
+        
+        
+        # for(i in 1:NFK){
+        # marketshare[t,i]=realsails[t,i]/totalrealsailsK   #vedere come cambia se metto la domanda ricevuta invece delle vendite
+        # if(is.nan(marketshare[t,i])==TRUE){
+        #   marketshare[t,i]=0
+        #}
+        # ratiomarketshare[t,i]=marketshare[t,i]/((1-realsails[t,i]/totalrealsailsK)/(NFK-1))
+        # if(is.nan(ratiomarketshare[t,i])==TRUE){
+        #   ratiomarketshare[t,i]=0
+        #  }
+        #  }
+        # yc[t,mc]=sum(y[t,which(cod==1)])
+        #def_yc[t]=saldosecondario[t]/yc[t]
+        #deb_yc[t,mc]=stockdebtG[t]/(sum(realsails[t,which(cod==1)]))
+        
+        
+        
+        #percbondcap[t]=BondDemand_cap[t]/stockdebtG[t]
+        percbondCB[t]=BondCB[t]/stockdebtG[t]
+        
+        
+        if(FALSE){
+          totdemandcapital=sum(demandperfirmcapital[t,])
+          for(i in 1:NFK){
+            marketshare[t,i]=demandperfirmcapital[t,i]/totdemandcapital   #vedere come cambia se metto la domanda ricevuta invece delle vendite
+            if(is.nan(marketshare[t,i])==TRUE){
+              marketshare[t,i]=0
+            }
+            ratiomarketshare[t,i]=marketshare[t,i]/((1-demandperfirmcapital[t,i]/totdemandcapital)/(NFK-1))
+            if(is.nan(ratiomarketshare[t,i])==TRUE){
+              ratiomarketshare[t,i]=0
+            }
+          }
+          for(i in 1:NFK){
+            if(marketshare[t,i]>(1/NFK*1.3)){
+              if(t==1){
+                limalzare[t,i]=1
+                limabbassare[t,i]=0
+              }else{
+                limalzare[t,i]=limalzare[t-1,i]+1
+                limabbassare[t,i]=0
+              }
+            }else if(marketshare[t,i]<(1/NFK*0.5)){
+              if(t==1){
+                limabbassare[t,i]=1
+                limalzare[t,i]=0
+              }else{
+                limabbassare[t,i]=limabbassare[t-1,i]+1
+                limalzare[t,i]=0
+              }
+            }else{
+              limalzare[t,i]=0
+              limabbassare[t,i]=0
+            }
+          }
+        }   
+        
+        totalrealsailsC=0
+        totalrealsailsC=sum(realsails[t,which(cod==1)])
+        
+        # for(i in (NFK+1):NF){
+        #   priceweightedC[i]=(realsails[t,i]/totalrealsailsC)*p[t,i]
+        #   markupweightedC[i]=(realsails[t,i]/totalrealsailsC)*markup[t,i]
+        # }
+        # 
+        if(totalrealsailsC>0){
+          priceweightedC[(NFK+1):NF]=realsails[t,(NFK+1):NF]/totalrealsailsC*p[t,(NFK+1):NF]
+          markupweightedC[(NFK+1):NF]=realsails[t,(NFK+1):NF]/totalrealsailsC*markup[t,(NFK+1):NF]
+        }
+        
+        totalrealsailsK=sum(realsails[t,which(cod==0)])
+        # for(i in 1:NFK){
+        #   if(totalrealsailsK>0){
+        #     priceweightedK[i]=(realsails[t,i]/totalrealsailsK)*p[t,i]
+        #     markupweightedK[i]=(realsails[t,i]/totalrealsailsK)*markup[t,i]
+        #   }
+        # }
+        bondfamiglietot[t]=sum(BondHH[t,])
+        
+        if(totalrealsailsK>0){
+          priceweightedK[1:NFK]=(realsails[t,1:NFK]/totalrealsailsK)*p[t,1:NFK]
+          markupweightedK[1:NFK]=(realsails[t,1:NFK]/totalrealsailsK)*markup[t,1:NFK]
+        }
+        
+        #indice dei prezzi
+        priceindexC[t]=sum(priceweightedC)
+        Gtot_real[t]=Gtot[t]/priceindexC[t]
+        priceindexK[t]=sum(priceweightedK)
+        #indice dei markup
+        markupindexC[t]=sum(markupweightedC)
+        markupindexK[t]=sum(markupweightedK)
+        #calcolo wage e profit share:
+        
+        wageshare[t]=sum(wage[t,])/sum(yh[t,])
+        if(t>1){
+          bankshare[t]=profitB[t-1]/sum(yh[t,])
+          profitshare[t]=(sum(div[t-1,])+profitB[t-1])/sum(yh[t,])
+          industrialshare[t]=sum(div[t-1,])/sum(yh[t,])
+        }
+        #calcolo consumo dei capitalisti: da aggiornare
+        #capitalistnominaldemand=sum(realconsumptiondemand[which(codclass==1)])*p[NF]
+        # capitalistnominalconsumptionfeasible=capitalistnominaldemand-sum(residualconsumpiondemand[which(codclass==1)])*p[NF]
+        #capitalistnominalconsumptionplusinvestment=capitalistnominalconsumptionfeasible+sum(kdfeasible[t,])*p[1]
+        GDPreal[t]=sum(y[t,which(cod==0)])*priceindexK[1]+sum(y[t,which(cod==1)])*priceindexC[1]
+        u_raggregate[t]=sum(k_used[t,])/ktot
+        GDP[t]=sum(y[t,which(cod==1)]*p[t,which(cod==1)])+sum(y_valorek[t,]) #GDP non deflazionato
+        Gweigth[t]=Gtot[t]/GDP[t]
+        Investmentvalue[t]=sum(y_valorek[t,])
+        Investmentwight[t]=Investmentvalue[t]/GDP[t]
+        investmentwight2[t]=sum(kd[t,])*p[t,1]
+        Consumptionhh[t]=sum(revenues[t,which(cod==1)])-Gcons[t]
+        Cweight[t]=Consumptionhh[t]/GDP[t]
+        DivK[t]=sum(div[t,1:NFK])
+        DivC[t]=sum(div[t,(NFK+1):NF])
+        if(TRUE){
+          
+          if(t==1){
+          }else{
+            inflazione[t]=(priceindexC[t]-priceindexC[t-1])/priceindexC[t-1]
+            
+          }
+          totprod=sum(y[t,(NFK+1):NF])
+          mshare_medium[t,(NFK+1):NF]=1/length(which(y[t,(NFK+1):NF]>0))
+          marketshare[t,(NFK+1):NF]= y[t,(NFK+1):NF]/totprod
+          
+          produzionek[t]=sum(y[t,1:NFK])
+          #GDPreale[t,mc]=GDPreal[t]
+          InvestmentR[t]=sum(kdordinatofeasible[t,])
+          Unemployment[t]=1-sum(employees[t,])/N
+          Employeestot[t]=sum(employees[t,])
+          EmployeesK[t]=sum(employees[t,1:NFK])
+          EmployeesC[t]=sum(employees[t,(NFK+1):NF])
+          if(Employeestot[t]/N<0.94){
+            #  print("too much unemployment in the economy (lower than 0.94")
+            #  print(t)
+          }
+          U[t]=(sum(employees[t,]))/Nwork
+          Une[t]=1-U[t]
+          Nonemp[t]=Nwork-sum(employees[t,])
+          invtotC[t]=sum(inv[t,which(cod==1)])
+          TotdebtF[t]=sum(stockdebtF[t,])
+          
+          y_hcap[t]=sum(yhd[t,which(codclass[]==1)])
+          
+          privatedebt_pil[t]=TotdebtF[t]/GDP[t]
+          
+          
+          #realyhworkers[t]=sum(realvalueyhd[t,1:Nwork])
+          #realyhcapitalist[t]=sum(realvalueyhd[t,(Nwork:N)])
+          
+          debpil[t]=stockdebtG[t]/(GDP[t])
+          debpilreal[t]=stockdebtG[t]/(GDPreal[t])
+          private_debpil[t]=StockLoanB[t]/GDP[t]
+          
+          Def_Pil[t]=saldoprimario[t]/GDP[t]
+          Def_Pil2[t]=saldosecondario[t]/GDP[t]
+          
+          firms=sort(k[t,],decreasing=TRUE)
+          tresh=firms[perc10]   #5 % delle imprese piu grandi
+          u_raggregatebigs[t]=sum(k_used[t,which(k[t,]>=tresh)])/sum(k[t,which(k[t,]>=tresh)])
+          firms=sort(k[t,],decreasing=FALSE)[(NFK+1):NF]
+          tresh2=firms[perc10] 
+          u_raggregatesmall[t]=sum(k_used[t,which(k[t,]<=tresh2)])/sum(k[t,which(k[t,]<=tresh2)])
+          firms=sort(k[t,],decreasing=TRUE)
+          tresh4=firms[perc30] 
+          tresh3=firms[perc60]
+          u_raggregatemedium[t]=sum(k_used[t,which(k[t,]>tresh3 & k[t,]<tresh4)])/sum(k[t,which(k[t,]>tresh3 & k[t,]<tresh4)])
+          
+          
+          #ue_pesati_aggregatebigs[t,(NFK+1):NF]=uefuturo[t,which(k[t,]>=tresh)]*k[t,which(k[t,]>=tresh)]/sum(k[t,which(k[t,]>=tresh)])
+          
+          propensities[t]=sum(nominalconsumptionexpenditure[t,])/(sum(yhd[t,]))
+          
+          if(t>dk){    
+            ratio[t,(NFK+1):NF]=(wb[t,(NFK+1):NF]+sum(kdfeasiblenominal[(t-dk+1):t,(NFK+1):NF])/(dk*(1+markupk))+sum(kdfeasiblenominal[(t-dk):(t-1),(NFK+1):NF])*(markupk/(dk*(1+markupk)))+div[t-1,(NFK+1):NF])/(Gef[t]+Consumptionhh[t])-revenues[t,(NFK+1):NF]/(Gef[t]+Consumptionhh[t])
+            meanratio[t]=sum(ratio[t,(NFK+1):NF])/NFC
+          }
+          
+          if(t>1){
+            gr[t,(NFK+1):NF]=(realsails[t,(NFK+1):NF]-realsails[t-1,(NFK+1):NF])/(realsails[t-1,(NFK+1):NF])
+            gr[t,(NFK+1):NF]=ifelse(is.nan(gr[t,(NFK+1):NF])==TRUE,0,gr[t,(NFK+1):NF])
+            gr[t,(NFK+1):NF]=ifelse(is.infinite(gr[t,(NFK+1):NF])==TRUE,1,gr[t,(NFK+1):NF])
+            gr[t,(NFK+1):NF]=ifelse(round(realsails[t-1,(NFK+1):NF],5)==0,1,gr[t,(NFK+1):NF])
+            
+          }
+          
+          if(t>1){
+            #g_yc[t]=(yc[t]-yc[t-1])/yc[t-1]
+            g_GDP[t]=(GDP[t]-GDP[t-1])/GDP[t-1]
+            g_Tax[t]=(Tax[t]-Tax[t-1])/Tax[t-1]
+            g_U[t]=(Nonemp[t]-Nonemp[t-1])/Nonemp[t-1]
+            g_GDPreal[t]=(GDPreal[t]-GDPreal[t-1])/GDPreal[t-1]
+            if(is.nan(g_U[t])==TRUE){
+              g_U[t]=0
+            }
+          }
+          
+          
+          pastbaskettotworkers[t]=sum(pastbasket[t,which(codclass[]==0)])
+          pastbaskettotcapitalists[t]=sum(pastbasket[t,which(codclass[]==1)])
+          consumptionemployed[t]=sum(totrealconsumption[t,which(unemp[]==0)])
+          yhdemployed[t]=sum(yhd[t,which(unemp[]==0)])
+        }
+        
+        if(length(yh[t,which(unemp==0)])!=N){
+          hkh=matrix(data=NA, nrow=N-length(yh[t,which(unemp==0)]))
+          
+          income[t,]=c(yh[t,which(unemp==0)],hkh)  
+          wealth[t,]=c(Vmarket[t,which(unemp==0)],hkh) 
+          
+        }else{
+          income[t,]=yh[t,which(unemp==0)]  
+          wealth[t,]=Vmarket[t,which(unemp==0)]   
+        }
+        income2=yh[t,which(unemp==0)]  
+        wealth2=Vmarket[t,which(unemp==0)]
+        
+        income3=yh[t,which(yh[t,]>0)]  
+        wealth3=Vmarket[t,which(yh[t,]>0)]
+        
+        Gini_index_in[t]=Gini(income2, unbiased=FALSE)
+        Gini_index_w[t]=Gini(wealth2, unbiased=FALSE)
+        aaa=sort(income2,decreasing=TRUE)
+        ratio_int_in[t]=sum(aaa[1:(round(length(aaa)/10))])/(sum(aaa[(length(aaa)-(round(length(aaa)/10))+1):length(aaa)]))
+        bbb=sort(wealth2,decreasing=TRUE)
+        ratio_int_w[t]=sum(bbb[1:(round(length(bbb)/10))])/(sum(bbb[(length(bbb)-(round(length(bbb)/10))+1):length(bbb)]))
+        
+        Gini_index_in2[t]=Gini(income3, unbiased=FALSE)
+        Gini_index_w2[t]=Gini(wealth3, unbiased=FALSE)
+        aaa=sort(income3,decreasing=TRUE)
+        ratio_int_in2[t]=sum(aaa[1:(round(length(aaa)/10))])/(sum(aaa[(length(aaa)-(round(length(aaa)/10))+1):length(aaa)]))
+        bbb=sort(wealth3,decreasing=TRUE)
+        ratio_int_w2[t]=sum(bbb[1:(round(length(bbb)/10))])/(sum(bbb[(length(bbb)-(round(length(bbb)/10))+1):length(bbb)]))
+        ratio_min_max[t]=min(income2)/max(income2)
+        ratio_min_max2[t]=min(income3)/max(income3)
+        
+        income_unemp[t,,jj]=income[t,]
+        income_pop[t,,jj]=yh[t,]
+        income_pop_real[t,,jj]=yh[t,]/priceindexC[t]
+        
+        if(length(yh[t,which(yh[t,]>0)])!=N){
+          hkh=matrix(data=NA, nrow=N-length(yh[t,which(yh[t,]>0)]))
+          
+          income_pos[t,,jj]=c(yh[t,which(yh[t,]>0)],hkh)  
+          
+        }else{
+          income_pos[t,,jj]=yh[t,which(yh[t,]>0)]  
+        }
+        
+        
+        if((all.equal(n_bond[t], n_bondCB[t]+sum(n_bondHH[t,])))==FALSE){
+          print("problem equality number of bonds")
+        }
+        
+        
+        aaa=sort(moneydeposit[t,],decreasing=TRUE)
+        intratio_deposits[t]=sum(aaa[1:(round(length(aaa)/10))])/(sum(aaa[(length(aaa)-(round(length(aaa)/10))+1):length(aaa)]))
+        aaa=sort(EquityH[t,],decreasing=TRUE)
+        intratio_equity[t]=sum(aaa[1:(round(length(aaa)/10))])/(sum(aaa[(length(aaa)-(round(length(aaa)/10))+1):length(aaa)]))
+        aaa=sort(BondHH[t,],decreasing=TRUE)
+        intratio_bonds[t]=sum(aaa[1:(round(length(aaa)/10))])/(sum(aaa[(length(aaa)-(round(length(aaa)/10))+1):length(aaa)]))
+        aaa=sort(fin_income[t,],decreasing=TRUE)
+        intratio_financial[t]=sum(aaa[1:(round(length(aaa)/10))])/(sum(aaa[(length(aaa)-(round(length(aaa)/10))+1):length(aaa)]))
+        
+        
+        
+        Gini_pop[t]=Gini(yh[t,],unbiased=FALSE)
+        Gini_pop_wealth[t]=Gini(Vmarket[t,],unbiased=FALSE)
+        Gini_pop_wealth_market[t]=Gini(Vmarket[t,],unbiased=FALSE)
+        Gini_bond[t]=Gini(round(BondHH[t,],6),unbiased=FALSE)
+        Gini_deposits[t]=Gini(round(moneydeposit[t,],5),unbiased=FALSE)
+        Gini_financial[t]=Gini(round(fin_income[t,],6),unbiased=FALSE)
+        labor_inequality[t]=Gini(wage[t,],unbiased=FALSE)
+        div_E_inequality[t]=Gini(round(div_E[t,],6),unbiased=FALSE)
+        Equity_inequality[t]=Gini(EquityH[t,],unbiased=FALSE)
+        aaa=sort(yh[t,],decreasing=TRUE)
+        ratio_int_pop[t]=sum(aaa[1:(round(length(aaa)/10))])/(sum(aaa[(length(aaa)-(round(length(aaa)/10))+1):length(aaa)]))
+        aaa=sort(Vmarket[t,],decreasing=TRUE)
+        ratio_int_pop_wealth[t]=sum(aaa[1:(round(length(aaa)/10))])/(sum(aaa[(length(aaa)-(round(length(aaa)/10))+1):length(aaa)]))
+        ratio_min_max_pop[t]=min(yh[t,])/max(yh[t,])
+
+        
+        Theil_index[t]=theil.wtd(yh[t,])
+        Theil_index_L[t]=mld.wtd(yh[t,])
+        Atkinson_index[t]=Atkinson(yh[t,])
+        #varianza_index[t]=var(yh[t,])
+        #Contribution to inequality 1
+        wage_cont_1[t]=cov(wage[t,],yh[t,])/var(yh[t,])
+        divf_cont_1[t]=cov(div_H[t,],yh[t,])/var(yh[t,])
+        divB_cont_1[t]=cov(div_B[t,],yh[t,])/var(yh[t,])
+        fin_cont_1[t]=cov(fin_income[t,],yh[t,])/var(yh[t,])
+        divE_cont_1[t]=cov(div_E[t,],yh[t,])/var(yh[t,])
+        
+        
+        
+        #Contribution to inequality 2
+        media=mean(yh[t,])
+        wage_cont_2[t]=sum(wage[t,]/yh[t,]*log(media/yh[t,]))/(sum(log(media/yh[t,])))
+        divf_cont_2[t]=sum(div_H[t,]/yh[t,]*log(media/yh[t,]))/(sum(log(media/yh[t,])))
+        divB_cont_2[t]=sum(div_B[t,]/yh[t,]*log(media/yh[t,]))/(sum(log(media/yh[t,])))
+        fin_cont_2[t]=sum(fin_income[t,]/yh[t,]*log(media/yh[t,]))/(sum(log(media/yh[t,])))
+        
+        
+        #Contribution to inequality 3
+        wage_cont_3[t]=sum(wage[t,]*log(yh[t,]/media))/(sum(yh[t,]*log(yh[t,]/media)))
+        divf_cont_3[t]=sum(div_H[t,]*log(yh[t,]/media))/(sum(yh[t,]*log(yh[t,]/media)))
+        divB_cont_3[t]=sum(div_B[t,]*log(yh[t,]/media))/(sum(yh[t,]*log(yh[t,]/media)))
+        fin_cont_3[t]=sum(fin_income[t,]*log(yh[t,]/media))/(sum(yh[t,]*log(yh[t,]/media)))
+        
+        
+        WealthHH[t]=sum(Vmarket[t,])
+        WealthHHff[t]=sum(Vef[t,])
+        Bond_over_wealth[t]=sum(BondHH[t,])/WealthHH[t]
+        Equity_over_wealth[t]=sum(EquityH[t,])/WealthHH[t]
+        if(TRUE){  
+          
+          #THE BALANCE SHEET OF THE ECONOMY ##################################################################################
+          #DEPOSITS
+          BS[which(rownames(BS)=="Deposits"),which(colnames(BS)=="HOUSEHOLDS"),t]=cashHcapmoment[t]+cashHwmoment[t]
+          BS[which(rownames(BS)=="Deposits"),which(colnames(BS)=="FIRMSK"),t]=sum(cashF[t,which(cod==0)])
+          BS[which(rownames(BS)=="Deposits"),which(colnames(BS)=="FIRMSC"),t]=sum(cashF[t,which(cod==1)])
+          BS[which(rownames(BS)=="Deposits"),which(colnames(BS)=="BANKS"),t]=-Deposit[t] #Controllare
+          BS[which(rownames(BS)=="Deposits"),which(colnames(BS)=="GOVERNMENT"),t]=cashG[t]
+          #LOANS
+          BS[which(rownames(BS)=="Loans"),which(colnames(BS)=="FIRMSK"),t]=-sum(stockdebtF[t,which(cod==0)])
+          BS[which(rownames(BS)=="Loans"),which(colnames(BS)=="FIRMSC"),t]=-sum(stockdebtF[t,which(cod==1)])
+          BS[which(rownames(BS)=="Loans"),which(colnames(BS)=="BANKS"),t]=StockLoanB[t]
+          #BS[which(rownames(BS)=="Loans"),which(colnames(BS)=="CB"),t]=-ReservesCB[t]
+          # CREDIT CONSUMPTION
+          BS[which(rownames(BS)=="Credit_Cons"),which(colnames(BS)=="HOUSEHOLDS"),t]=-sum(hhdebt[t,])
+          BS[which(rownames(BS)=="Credit_Cons"),which(colnames(BS)=="BANKS"),t]=creditconsumptionB[t]
+          # Non performingloan credit
+          BS[which(rownames(BS)=="Nonperforming_Cons"),which(colnames(BS)=="HOUSEHOLDS"),t]=-sum(nonperformingloanhh[t,])
+          BS[which(rownames(BS)=="Nonperforming_Cons"),which(colnames(BS)=="BANKS"),t]=nonperformingloanbank[t]
+          
+          #INVENTORIES
+          BS[which(rownames(BS)=="Inventories"),which(colnames(BS)=="FIRMSK"),t]=sum(valueinv[t,which(cod==0)])
+          BS[which(rownames(BS)=="Inventories"),which(colnames(BS)=="FIRMSC"),t]=sum(valueinv[t,which(cod==1)])
+          #FIXED CAPITAL
+          BS[which(rownames(BS)=="Fixed Capital"),which(colnames(BS)=="FIRMSC"),t]=sum(kvalue[t,])
+          #ADVANCES
+          BS[which(rownames(BS)=="Advances"),which(colnames(BS)=="BANKS"),t]=-Advances[t]
+          BS[which(rownames(BS)=="Advances"),which(colnames(BS)=="CB"),t]=Advances[t]
+          #HPM $ reserves
+          BS[which(rownames(BS)=="HPM"),which(colnames(BS)=="CB"),t]=-Hb[t]
+          BS[which(rownames(BS)=="HPM"),which(colnames(BS)=="BANKS"),t]=Hb[t]
+          #Bonds
+          BS[which(rownames(BS)=="Bond"),which(colnames(BS)=="GOVERNMENT"),t]=-stockdebtG[t]
+          BS[which(rownames(BS)=="Bond"),which(colnames(BS)=="CB"),t]=BondCB[t]
+          BS[which(rownames(BS)=="Bond"),which(colnames(BS)=="HOUSEHOLDS"),t]=sum(BondHH[t,])#BondDemand_tot[t]
+          #Equity
+          BS[which(rownames(BS)=="Equity"),which(colnames(BS)=="FIRMSC"),t]=-p_e[t]*equities_tot[t]  #-E_tot[t]
+          BS[which(rownames(BS)=="Equity"),which(colnames(BS)=="HOUSEHOLDS"),t]=p_e[t]*equities_tot[t] #sum(EquityH[t,])
+          #NET WORTH
+          BS[which(rownames(BS)=="Net Worth"),which(colnames(BS)=="HOUSEHOLDS"),t]=-cashHcapmoment[t]-cashHwmoment[t]-sum(BondHH[t,])-sum(EquityH[t,])+sum(hhdebt[t,])+sum(nonperformingloanhh[t,])  #-sum(cashH[which(codclass==0)])
+          BS[which(rownames(BS)=="Net Worth"),which(colnames(BS)=="FIRMSK"),t]=-sum(NW[t,which(cod==0)])
+          BS[which(rownames(BS)=="Net Worth"),which(colnames(BS)=="FIRMSC"),t]=-sum(NW[t,which(cod==1)])
+          BS[which(rownames(BS)=="Net Worth"),which(colnames(BS)=="BANKS"),t]=-NWB[t]
+          BS[which(rownames(BS)=="Net Worth"),which(colnames(BS)=="GOVERNMENT"),t]=-NWG[t]
+          BS[which(rownames(BS)=="Net Worth"),which(colnames(BS)=="CB"),t]=-NWCB[t]
+          
+          #CONSISTENCY CHECK ROWs
+          BS[which(rownames(BS)=="Deposits"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Deposits"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Net Worth"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Net Worth"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Loans"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Loans"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Credit_Cons"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Credit_Cons"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Nonperforming_Cons"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Nonperforming_Cons"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Advances"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Advances"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Inventories"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Inventories"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Bond"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Bond"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Fixed Capital"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Fixed Capital"),,t]), digits = 4)
+          BS[which(rownames(BS)=="HPM"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="HPM"),,t]), digits = 4)
+          BS[which(rownames(BS)=="Equity"),which(colnames(BS)=="SUM"),t]=round(sum(BS[which(rownames(BS)=="Equity"),,t]), digits = 4)
+          
+          #CONSISTENCY CHECK COLUMNSs
+          BS[which(rownames(BS)=="SUM"),which(colnames(BS)=="HOUSEHOLDS"),t]=round(sum(BS[,which(colnames(BS)=="HOUSEHOLDS"),t]), digits = 4)
+          BS[which(rownames(BS)=="SUM"),which(colnames(BS)=="FIRMSK"),t]=round(sum(BS[,which(colnames(BS)=="FIRMSK"),t]), digits = 4)
+          BS[which(rownames(BS)=="SUM"),which(colnames(BS)=="FIRMSC"),t]=round(sum(BS[,which(colnames(BS)=="FIRMSC"),t]), digits = 4)
+          BS[which(rownames(BS)=="SUM"),which(colnames(BS)=="BANKS"),t]=round(sum(BS[,which(colnames(BS)=="BANKS"),t]),4)
+          BS[which(rownames(BS)=="SUM"),which(colnames(BS)=="GOVERNMENT"),t]=round(sum(BS[,which(colnames(BS)=="GOVERNMENT"),t]), digits = 4)
+          BS[which(rownames(BS)=="SUM"),which(colnames(BS)=="CB"),t]=round(sum(BS[,which(colnames(BS)=="CB"),t]), digits = 4)
+          BS[which(rownames(BS)=="SUM"),which(colnames(BS)=="SUM"),t]=round(sum(BS[,which(colnames(BS)=="SUM"),t]), digits = 4)
+          
+          #TRANSACTION MATRIX##############################
+          #Consumption
+          
+          
+          TM[which(rownames(TM)=="Consumption"),which(colnames(TM)=="HOUSEHOLDS"),t]=-sum(nominalconsumptionexpenditure[t,])
+          TM[which(rownames(TM)=="Consumption"),which(colnames(TM)=="FIRMSC"),t]=sum(revenues[t,(NFK+1):NF])-Gcons[t]
+          #investments
+          TM[which(rownames(TM)=="Investments"),which(colnames(TM)=="FIRMSC"),t]=-sum(kdfeasiblenominal[t,which(cod==1)])
+          TM[which(rownames(TM)=="Investments"),which(colnames(TM)=="FIRMSK"),t]=sum(revenues[t,which(cod==0)])
+          #GOV EXPENDITURE
+          TM[which(rownames(TM)=="GovExp"),which(colnames(TM)=="GOVERNMENT"),t]=-Gcons[t]
+          TM[which(rownames(TM)=="GovExp"),which(colnames(TM)=="FIRMSC"),t]=Gcons[t]
+          #TAX
+          TM[which(rownames(TM)=="Tax"),which(colnames(TM)=="HOUSEHOLDS"),t]=-Tax[t]
+          TM[which(rownames(TM)=="Tax"),which(colnames(TM)=="GOVERNMENT"),t]=Tax[t]
+          #wages
+          TM[which(rownames(TM)=="Wages"),which(colnames(TM)=="HOUSEHOLDS"),t]=sum(wb[t,])
+          TM[which(rownames(TM)=="Wages"),which(colnames(TM)=="FIRMSK"),t]=-sum(wb[t,which(cod==0)])
+          TM[which(rownames(TM)=="Wages"),which(colnames(TM)=="FIRMSC"),t]=-sum(wb[t,which(cod==1)])
+          #PROFITS
+          TM[which(rownames(TM)=="Div_H"),which(colnames(TM)=="FIRMSK"),t]=-sum(div_to_H[t,which(cod==0)])
+          
+          TM[which(rownames(TM)=="Div_H"),which(colnames(TM)=="FIRMSC"),t]=-sum(div_to_H[t,which(cod==1)])
+          TM[which(rownames(TM)=="Div_E"),which(colnames(TM)=="FIRMSC"),t]=-sum(div_to_E[t,which(cod==1)])
+          TM[which(rownames(TM)=="Div_B"),which(colnames(TM)=="BANKS"),t]=-divB[t]
+          TM[which(rownames(TM)=="Div_H"),which(colnames(TM)=="HOUSEHOLDS"),t]=sum(div_H[t,])
+          TM[which(rownames(TM)=="Div_E"),which(colnames(TM)=="HOUSEHOLDS"),t]=sum(div_E[t,])
+          TM[which(rownames(TM)=="Div_B"),which(colnames(TM)=="HOUSEHOLDS"),t]=sum(div_B[t,])
+          
+          
+          #ricapitalizzazione capitalisti
+          TM[which(rownames(TM)=="Recapital"),which(colnames(TM)=="HOUSEHOLDS"),t]=-sum(dissavingcap[t,])
+          TM[which(rownames(TM)=="Recapital"),which(colnames(TM)=="FIRMSC"),t]=sum(dissavingcap[t,])
+          #interests laons
+          TM[which(rownames(TM)=="IntOnLoans&ov"),which(colnames(TM)=="FIRMSK"),t]=-sum(interestpaymentF[t,which(cod==0)])
+          TM[which(rownames(TM)=="IntOnLoans&ov"),which(colnames(TM)=="FIRMSC"),t]=-sum(interestpaymentF[t,which(cod==1)])
+          TM[which(rownames(TM)=="IntOnLoans&ov"),which(colnames(TM)=="BANKS"),t]=sum(interestpaymentF[t,]) #dovrei aggiungere gli interessi che riceve dalla banca centrale
+          #Interests credit to consumption
+          TM[which(rownames(TM)=="IntCreditConsumption"),which(colnames(TM)=="HOUSEHOLDS"),t]=-Bankcreditinterest[t]
+          TM[which(rownames(TM)=="IntCreditConsumption"),which(colnames(TM)=="BANKS"),t]=Bankcreditinterest[t]
+          
+          #UnBenefit
+          TM[which(rownames(TM)=="UnBenefit"),which(colnames(TM)=="GOVERNMENT"),t]=-Ubenefit[t]
+          TM[which(rownames(TM)=="UnBenefit"),which(colnames(TM)=="HOUSEHOLDS"),t]=Ubenefit[t]
+          
+          
+          #INTERESTDEPOSIT
+          if(t>1){
+            TM[which(rownames(TM)=="InterestDeposit"),which(colnames(TM)=="HOUSEHOLDS"),t]=Moneydeposit_worker[t-1]*intratedeposit[t-1]+Moneydeposit_cap[t-1]*intratedeposit[t-1]
+            TM[which(rownames(TM)=="InterestDeposit"),which(colnames(TM)=="BANKS"),t]=-Moneydeposit_cap[t-1]*intratedeposit[t-1]-Moneydeposit_worker[t-1]*intratedeposit[t-1]
+            
+            #PROFITTI CB
+            TM[which(rownames(TM)=="ProfitCB"),which(colnames(TM)=="CB"),t]=-ProfitCB[t]
+            TM[which(rownames(TM)=="ProfitCB"),which(colnames(TM)=="GOVERNMENT"),t]=ProfitCB[t]
+            
+            
+            
+            #interessi riserve
+            TM[which(rownames(TM)=="InterestHb"),which(colnames(TM)=="CB"),t]=-Hb2[t-1]*intratedeposit[t-1]
+            TM[which(rownames(TM)=="InterestHb"),which(colnames(TM)=="BANKS"),t]=Hb2[t-1]*intratedeposit[t-1]
+            
+            #iNTERESSI Advances
+            TM[which(rownames(TM)=="InterestAdv"),which(colnames(TM)=="CB"),t]=Advances[t-1]*advanceinterest[t-1]
+            TM[which(rownames(TM)=="InterestAdv"),which(colnames(TM)=="BANKS"),t]=-Advances[t-1]*advanceinterest[t-1]
+          }
+          #interest Bond pubblici
+          TM[which(rownames(TM)=="InterestBond"),which(colnames(TM)=="CB"),t]=interestBond_CB[t]
+          TM[which(rownames(TM)=="InterestBond"),which(colnames(TM)=="GOVERNMENT"),t]=-interestpaymentG[t]
+          if(t>1){
+            TM[which(rownames(TM)=="InterestBond"),which(colnames(TM)=="HOUSEHOLDS"),t]=sum(interestBondHH[t,])
+          }
+          
+          
+          
+          #Deltacash->deltadeposit
+          if(t>1){
+            TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="FIRMSK"),t]=-(sum(cashF[t,which(cod==0)])-sum(cashF[t-1,which(cod==0)]))
+            TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="FIRMSC"),t]=-(sum(cashF[t,which(cod==1)])-sum(cashF[t-1,which(cod==1)]))
+            TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="HOUSEHOLDS"),t]=-(cashHcapmoment[t]+cashHwmoment[t]-cashHcapmoment[t-1]-cashHwmoment[t-1])
+            TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="GOVERNMENT"),t]=-(cashG[t]-cashG[t-1])
+          }else{
+            TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="FIRMSK"),t]=-sum(cashF[t,which(cod==0)])
+            TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="FIRMSC"),t]=-sum(cashF[t-1,which(cod==0)])
+            TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="HOUSEHOLDS"),t]=-cashHcapmoment[t]-cashHwmoment[t]
+            TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="GOVERNMENT"),t]=-cashG[t]
+          }
+          TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="BANKS"),t]=deltaDeposit[t]
+          #deltaAssetatCB[t]=PerditaB[t]
+          #DELTALOANS
+          TM[which(rownames(TM)=="deltaloan"),which(colnames(TM)=="FIRMSK"),t]=sum(loandemandF[t,which(cod==0)])-sum(servicedebtF[t,which(cod==0)])
+          TM[which(rownames(TM)=="deltaloan"),which(colnames(TM)=="FIRMSC"),t]=sum(loandemandF[t,which(cod==1)])-sum(servicedebtF[t,which(cod==1)])+sum(shortloandemandF[t,which(cod==1)])+sum(overdraftdemand[t,which(cod==1)])-sum(restituzioneparziale[t,which(cod==1)])-sum(servicericapital[t,which(cod==1)])-PerditaB[t] #quest' ultimo corrsiponde al debito cancellato
+          TM[which(rownames(TM)=="deltaloan"),which(colnames(TM)=="BANKS"),t]=-(LoanBDemand[t]-sum(servicedebtF[t,])-sum(restituzioneparziale[t,])-sum(servicericapital[t,])-PerditaB[t])
+          TM[which(rownames(TM)=="deltaloan"),which(colnames(TM)=="CB"),t]=deltaAssetatCB[t] #andrebbe modificato con delta advances= stockdebito-depositi
+          #Delta credit consumption
+          TM[which(rownames(TM)=="deltacreditCons"),which(colnames(TM)=="BANKS"),t]=-(sum(creditdemand[t,])-sum(capitalhh[t,]))
+          TM[which(rownames(TM)=="deltacreditCons"),which(colnames(TM)=="HOUSEHOLDS"),t]=sum(creditdemand[t,])-sum(capitalhh[t,])
+          #deltaAdvances
+          TM[which(rownames(TM)=="deltaAdvances"),which(colnames(TM)=="BANKS"),t]=deltaAdvances[t] #andrebbe modificato con delta advances
+          TM[which(rownames(TM)=="deltaAdvances"),which(colnames(TM)=="CB"),t]=-deltaAdvances[t]  #andrebbe modificato con delta advances
+          #non performing loans
+          TM[which(rownames(TM)=="deltanonperforming"),which(colnames(TM)=="FIRMSC"),t]=PerditaB[t]
+          TM[which(rownames(TM)=="deltanonperforming"),which(colnames(TM)=="BANKS"),t]=-PerditaB[t]
+          #delta bond
+          
+          if(t>1){
+            TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="GOVERNMENT"),t]=bond[t]-bondrepayment[t] 
+            TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="CB"),t]=-(BuyBond_CB[t]-BondRepayed_CB[t]) 
+            TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="HOUSEHOLDS"),t]=-(sum(BondDemand[t,])-sum(bondscadenzaHH[t,]))  
+            # TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="GOVERNMENT"),t]=stockdebtG[t]-stockdebtG[t-1]
+            # TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="CB"),t]=-(BondCB[t]-BondCB[t-1])
+            # TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="HOUSEHOLDS"),t]=-(sum(BondHH[t,])-sum(BondHH[t-1,])) 
+          }else{
+            TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="GOVERNMENT"),t]=bond[t]
+            TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="CB"),t]=-BondCB[t] 
+            TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="HOUSEHOLDS"),t]=-sum(BondHH[t,])
+          }
+          #delta Hb
+          if(t>1){
+            TM[which(rownames(TM)=="deltaHb"),which(colnames(TM)=="CB"),t]=Hb[t]-Hb[t-1]
+            TM[which(rownames(TM)=="deltaHb"),which(colnames(TM)=="BANKS"),t]=-(Hb[t]-Hb[t-1])
+            if(t>2){
+              TM[which(rownames(TM)=="deltaEquity"),which(colnames(TM)=="HOUSEHOLDS"),t]=-p_e[t]*(equities_tot[t]-equities_tot[t-1])   #(sum(EquityH[t,])-sum(EquityH[t-1,]))
+              TM[which(rownames(TM)=="deltaEquity"),which(colnames(TM)=="FIRMSC"),t]=p_e[t]*(equities_tot[t]-equities_tot[t-1])
+            }else{
+              TM[which(rownames(TM)=="deltaEquity"),which(colnames(TM)=="HOUSEHOLDS"),t]=-E_received_tot[t] #(sum(EquityH[t,])-sum(EquityH[t-1,]))
+              TM[which(rownames(TM)=="deltaEquity"),which(colnames(TM)=="FIRMSC"),t]=E_received_tot[t]
+              
+            }
+            TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="HOUSEHOLDS"),t]=(pbond[t]-pbond[t-1])*(sum(n_bondHH[t-1,])) #-sum(n_bondscadenzaHH[t,]))
+            TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="CB"),t]=(pbond[t]-pbond[t-1])*(n_bondCB[t-1]) #-n_bondscadenzaCB[t])
+            TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="GOVERNMENT"),t]=-(pbond[t]-pbond[t-1])*(n_bond[t-1]) #-n_bondscadenza[t])
+            
+            
+          }else{
+            TM[which(rownames(TM)=="deltaHb"),which(colnames(TM)=="CB"),t]=Hb[t]
+            TM[which(rownames(TM)=="deltaHb"),which(colnames(TM)=="BANKS"),t]=-Hb[t]
+            TM[which(rownames(TM)=="deltaEquity"),which(colnames(TM)=="HOUSEHOLDS"),t]=-((sum(equities[t,]))*p_e[t])
+            TM[which(rownames(TM)=="deltaEquity"),which(colnames(TM)=="FIRMSC"),t]=equities_tot[t]*p_e[t]
+            
+          }
+          
+          
+          
+          #CONSISTENCY CHECK ROWs
+          TM[which(rownames(TM)=="Consumption"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Consumption"),,t]),digits=4)
+          TM[which(rownames(TM)=="Investments"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Investments"),,t]),digits=4)
+          TM[which(rownames(TM)=="GovExp"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="GovExp"),,t]),digits=4)
+          TM[which(rownames(TM)=="Tax"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Tax"),,t]),digits=4)
+          TM[which(rownames(TM)=="Wages"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Wages"),,t]),digits=4)
+          TM[which(rownames(TM)=="Div_H"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Div_H"),,t]),digits=4)
+          TM[which(rownames(TM)=="Div_E"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Div_E"),,t]),digits=4)
+          TM[which(rownames(TM)=="Div_B"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Div_B"),,t]),digits=4)
+          TM[which(rownames(TM)=="Recapital"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Recapital"),,t]),digits=4)
+          TM[which(rownames(TM)=="IntOnLoans&ov"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="IntOnLoans&ov"),,t]),digits=4)
+          TM[which(rownames(TM)=="IntCreditConsumption"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="IntCreditConsumption"),,t]),digits=4)
+          TM[which(rownames(TM)=="UnBenefit"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="UnBenefit"),,t]),digits=4)
+          TM[which(rownames(TM)=="InterestDeposit"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="InterestDeposit"),,t]),digits=4)
+          TM[which(rownames(TM)=="ProfitCB"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="ProfitCB"),,t]),digits=4)
+          TM[which(rownames(TM)=="InterestHb"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="InterestHb"),,t]),digits=4)
+          TM[which(rownames(TM)=="InterestAdv"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="InterestAdv"),,t]),digits=4)
+          TM[which(rownames(TM)=="InterestBond"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="InterestBond"),,t]),digits=4)
+          TM[which(rownames(TM)=="deltadepositi"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="deltadepositi"),,t]),digits=4)
+          TM[which(rownames(TM)=="deltaloan"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="deltaloan"),,t]),digits=4)
+          TM[which(rownames(TM)=="deltacreditCons"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="deltacreditCons"),,t]),digits=4)
+          TM[which(rownames(TM)=="deltaBond"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="deltaBond"),,t]),digits=4)
+          TM[which(rownames(TM)=="deltaAdvances"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="deltaAdvances"),,t]),digits=4)
+          TM[which(rownames(TM)=="deltanonperforming"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="deltanonperforming"),,t]),digits=4)
+          TM[which(rownames(TM)=="deltaHb"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="deltaHb"),,t]),digits=4)
+          TM[which(rownames(TM)=="deltaEquity"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="deltaEquity"),,t]),digits=4)
+          TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="SUM"),t]=round(sum(TM[which(rownames(TM)=="Capital_gains_bond"),,t]),digits=4)
+          
+          
+          
+          #CONSISTENCY CHECK COLUMNSs
+          TM[which(rownames(TM)=="SUM"),which(colnames(TM)=="HOUSEHOLDS"),t]=round(sum(TM[,which(colnames(TM)=="HOUSEHOLDS"),t]),4)-round(TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="HOUSEHOLDS"),t],4)
+          TM[which(rownames(TM)=="SUM"),which(colnames(TM)=="FIRMSK"),t]=round(sum(TM[,which(colnames(TM)=="FIRMSK"),t]),4)-round(TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="FIRMSK"),t],4)
+          TM[which(rownames(TM)=="SUM"),which(colnames(TM)=="FIRMSC"),t]=round(sum(TM[,which(colnames(TM)=="FIRMSC"),t]),4)-round(TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="FIRMSC"),t],4)
+          TM[which(rownames(TM)=="SUM"),which(colnames(TM)=="BANKS"),t]=round(sum(TM[,which(colnames(TM)=="BANKS"),t]),4)-round(TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="BANKS"),t],4)
+          TM[which(rownames(TM)=="SUM"),which(colnames(TM)=="GOVERNMENT"),t]=round(sum(TM[,which(colnames(TM)=="GOVERNMENT"),t]),4)-round(TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="GOVERNMENT"),t],4)
+          TM[which(rownames(TM)=="SUM"),which(colnames(TM)=="CB"),t]=round(sum(TM[,which(colnames(TM)=="CB"),t]),4)-round(TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="CB"),t],4)
+          TM[which(rownames(TM)=="SUM"),which(colnames(TM)=="SUM"),t]=round(sum(TM[,which(colnames(TM)=="SUM"),t]),4)-round(TM[which(rownames(TM)=="Capital_gains_bond (memo)"),which(colnames(TM)=="SUM"),t],4)
+          
+          
+          
+        }
+      }
+    }
+    
+    tot_wealth=matrix(data=0, nrow=T)
+    perc_w_work=matrix(data=0, nrow=T)
+    perc_w_cap=matrix(data=0, nrow=T)
+    for(i in 1:T){
+      #tot_wealth[i]=NW_workers[i]+NW_cap[i]
+      # perc_w_cap[i]=NW_cap[i]/tot_wealth[i]
+      # perc_w_work[i]=NW_workers[i]/tot_wealth[i]
+    }
+    
+    lamba_equity_saved[jj,]=lambdaz_equity[1:N]
+    
+    GDPdeflated[jj,]=GDPreal
+    prezzi[jj,]=priceindexC
+    markuppi[jj,]=markupindexC
+    wealthca[jj,]=perc_w_cap
+    wealthwork[jj,]=perc_w_work
+    wagesha[jj,]=wageshare
+    banksh[jj,]=bankshare
+    indsh[jj,]=industrialshare
+    financialshare[jj,]=1-indsh[jj,]-banksh[jj,]-wagesha[jj,]
+    Gini_index_income[jj,]=Gini_index_in
+    Gini_index_wealth[jj,]=Gini_index_w
+    ratio_int_income[jj,]=ratio_int_in
+    ratio_in_wealth[jj,]=ratio_int_w
+    
+    Gini_index_income2[jj,]=Gini_index_in2
+    Gini_index_wealth2[jj,]=Gini_index_w2
+    ratio_int_income2[jj,]=ratio_int_in2
+    ratio_in_wealth2[jj,]=ratio_int_w2
+    ratiominmax[jj,]=ratio_min_max
+    ratiominmax2[jj,]=ratio_min_max2
+    
+    Gini_index_popol[jj,]=Gini_pop
+    ratio_int_popol[jj,]=ratio_int_pop
+    ratiominmax_popol[jj,]=ratio_min_max_pop
+    
+    
+    Gini_index_popol_wealth[jj,]=Gini_pop_wealth
+    ratio_int_popol_wealth[jj,]=ratio_int_pop_wealth
+    Gini_pop_index_wealth_market[jj,]=Gini_pop_wealth_market
+    
+    Fin_ineq[jj,]=Gini_financial
+    Dep_ineq[jj,]=Gini_deposits
+    Bond_ine[jj,]=Gini_bond
+    Lab_ineq_index[jj,]=labor_inequality
+    Div_inequality_index[jj,]=div_E_inequality
+    Equity_inequality_index[jj,]=Equity_inequality
+    
+    
+    Interdecile_fin[jj,]=intratio_financial
+    Interdecil_bond[jj,]=intratio_bonds
+    Interdecile_equity[jj,]=intratio_equity
+    Interdecile_deposits[jj,]=intratio_deposits
+    
+    
+    
+    
+    
+    Theil_index_in[jj,]=Theil_index
+    Theil_index_L_in[jj,]=Theil_index_L
+    Atkinson_index_in[jj,]=Atkinson_index
+    #Contribution to inequality 1
+    wage_cont_1_in[jj,]=wage_cont_1
+    divf_cont_1_in[jj,]=divf_cont_1
+    divB_cont_1_in[jj,]=divB_cont_1
+    fin_cont_1_in[jj,]=fin_cont_1
+    divE_cont_1_in[jj,]=divE_cont_1
+    #Contribution to inequality 2
+    wage_cont_2_in[jj,]=wage_cont_2
+    divf_cont_2_in[jj,]=divf_cont_2
+    divB_cont_2_in[jj,]=divB_cont_2
+    fin_cont_2_in[jj,]=fin_cont_2
+    
+    
+    #Contribution to inequality 3
+    wage_cont_3_in[jj,]=wage_cont_3
+    divf_cont_3_in[jj,]=divf_cont_3
+    divB_cont_3_in[jj,]=divB_cont_3
+    fin_cont_3_in[jj,]=fin_cont_3
+    moneydepositHH[jj,]=Deposit2
+    growth_wealth_market[,,jj]=g_wealth_market
+    growth_wealth[,,jj]=g_wealth
+    B_Vhh[jj,]=Bond_over_wealth
+    E_Vhh[jj,]=Equity_over_wealth  
+    CG_Wealth[,,jj]=capitalgainsHH_on_wealth
+    CG_Bond_Wealth[,,jj]=capitalgains_bond_on_wealth
+    CG_Wealth_market[,,jj]=capitalgainsHH_on_wealth_market
+    CG_Bond_Wealth_market[,,jj]=capitalgains_bond_on_wealth_market
+    CG_Wealth_delay[,,jj]=capitalgainsHH_on_wealth_delay
+    CG_Bond_Wealth_delay[,,jj]=capitalgains_bond_on_wealth_delay
+    Wealth_array_market[,,jj]=Vmarket
+    Wealth_array[,,jj]=V
+    Vhh[jj,]=WealthHH
+    saldoprimo[jj,]=saldoprimario
+    spesapubb[jj,]=Gef
+    spesapubbreal[jj,]=Greal
+    debpub_pil[jj,]=debpil
+    debpriv_pil[jj,]=private_debpil
+    bondtothousehold[jj,]=BondHHtot
+    bondfamiglie[jj,]=bondfamiglietot
+    nominalbondfamiglie[jj,]=totalnominalvaluebondHH
+    interestgoverment[jj,]=interestpaymentG
+    propensities_cons[jj,]=propensities
+    price_equity[jj,]=p_e
+    price_bond[jj,]=pbond
+  }
+  
+  Gini_In_pre[uu,]=Gini_index_popol[1:nsim,shock-1]
+  Gini_In_post[uu,]=Gini_index_popol[1:nsim,T]
+  Gini_In_pre_wealth[uu,]=Gini_index_popol_wealth[1:nsim,shock-1]
+  Gini_In_post_wealth[uu,]=Gini_index_popol_wealth[1:nsim,T]
+  
+  ratio_int_pre[uu,]=ratio_int_popol[1:nsim,shock-1]
+  ratio_int_post[uu,]=ratio_int_popol[1:nsim,T]
+  ratio_int_pre_wealth[uu,]=ratio_int_popol_wealth[1:nsim,shock-1]
+  ratio_int_post_wealth[uu,]=ratio_int_popol_wealth[1:nsim,T]
+  
+  variations_Gini[uu,]=(Gini_index_popol[1:nsim,T]-Gini_index_popol[1:nsim,shock-1])/Gini_index_popol[1:nsim,shock-1]
+  variations_ratio[uu,]=(ratio_int_popol[1:nsim,T]-ratio_int_popol[1:nsim,shock-1])/ratio_int_popol[1:nsim,shock-1]
+  variations_Gini_wealth[uu,]=(Gini_index_popol_wealth[1:nsim,T]-Gini_index_popol_wealth[1:nsim,shock-1])/Gini_index_popol_wealth[1:nsim,shock-1]
+  variations_ratio_wealth[uu,]=(ratio_int_popol_wealth[1:nsim,T]-ratio_int_popol_wealth[1:nsim,shock-1])/ratio_int_popol_wealth[1:nsim,shock-1]
+  
+  
+  Theil_index_in_pre[uu,]=Theil_index_in[1:nsim,shock-1]
+  Theil_index_in_post[uu,]=Theil_index_in[1:nsim,T]
+  Theil_index_L_in_pre[uu,]=Theil_index_L_in[1:nsim,shock-1]
+  Theil_index_L_in_post[uu,]=Theil_index_L_in[1:nsim,T]
+  Atkinson_index_in_pre[uu,]=Atkinson_index_in[1:nsim,shock-1]
+  Atkinson_index_in_post[uu,]=Atkinson_index_in[1:nsim,T]
+  
+  wage_cont_1_in_pre[uu,]=wage_cont_1_in[1:nsim,shock-1]
+  wage_cont_1_in_post[uu,]=wage_cont_1_in[1:nsim,T]
+  
+  divf_cont_1_in_pre[uu,]=divf_cont_1_in[1:nsim,shock-1]
+  divf_cont_1_in_post[uu,]=divf_cont_1_in[1:nsim,T]
+  
+  divB_cont_1_in_pre[uu,]=divB_cont_1_in[1:nsim,shock-1]
+  divB_cont_1_in_post[uu,]=divB_cont_1_in[1:nsim,T]
+  
+  fin_cont_1_in_pre[uu,]=fin_cont_1_in[1:nsim,shock-1]
+  fin_cont_1_in_post[uu,]=fin_cont_1_in[1:nsim,T]
+  
+  wage_cont_2_in_pre[uu,]=wage_cont_2_in[1:nsim,shock-1]
+  wage_cont_2_in_post[uu,]=wage_cont_2_in[1:nsim,T]
+  
+  divf_cont_2_in_pre[uu,]=divf_cont_2_in[1:nsim,shock-1]
+  divf_cont_2_in_post[uu,]=divf_cont_2_in[1:nsim,T]
+  
+  divB_cont_2_in_pre[uu,]=divB_cont_2_in[1:nsim,shock-1]
+  divB_cont_2_in_post[uu,]=divB_cont_2_in[1:nsim,T]
+  
+  fin_cont_2_in_pre[uu,]=fin_cont_2_in[1:nsim,shock-1]
+  fin_cont_2_in_post[uu,]=fin_cont_2_in[1:nsim,T]
+  
+  wage_cont_3_in_pre[uu,]=wage_cont_3_in[1:nsim,shock-1]
+  wage_cont_3_in_post[uu,]=wage_cont_3_in[1:nsim,T]
+  
+  divf_cont_3_in_pre[uu,]=divf_cont_3_in[1:nsim,shock-1]
+  divf_cont_3_in_post[uu,]=divf_cont_3_in[1:nsim,T]
+  
+  divB_cont_3_in_pre[uu,]=divB_cont_3_in[1:nsim,shock-1]
+  divB_cont_3_in_post[uu,]=divB_cont_3_in[1:nsim,T]
+  
+  fin_cont_3_in_pre[uu,]=fin_cont_3_in[1:nsim,shock-1]
+  fin_cont_3_in_post[uu,]=fin_cont_3_in[1:nsim,T]
+  
+}
+# End ####
+
+
+
+library(corrplot)
+library(plotly)
+library(viridis)
+library(gridExtra)
+
+b=580
+T=700
+time <- seq(b, T, by = 1)
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(Gini_index_popol[1, b:(T)],
+            Gini_index_popol[2, b:(T)],
+            Gini_index_popol[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+# Creare il grafico per "Gini Income"
+p1 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Gini Income", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(Gini_index_popol[, b:T]) * 0.95, ymax = max(Gini_index_popol[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  )
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(Gini_pop_index_wealth_market[1, b:(T)],
+            Gini_pop_index_wealth_market[2, b:(T)],
+            Gini_pop_index_wealth_market[3, b:(T)]),
+  group = rep(c("H = 0", "H = 1", "H = 2"), each = length(time))
+)
+
+p2 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Gini Wealth", x = "", y = "", color = NULL, fill = NULL) +  # Titoli e legenda senza titolo della legenda
+  scale_color_manual(values = c("H = 0" = "gold",        # Giallo indiano
+                                "H = 1" = "purple",      # Viola
+                                "H = 2" = "steelblue")) +
+  scale_fill_manual(values = c("H = 0" = "gold",        # Giallo indiano
+                               "H = 1" = "purple",      # Viola
+                               "H = 2" = "steelblue")) +
+  annotate("rect", xmin = shock, xmax = T, ymin = min(Gini_pop_index_wealth_market[, b:T]) * 0.95, ymax = max(Gini_pop_index_wealth_market[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = 0.5),        # Centra il titolo
+    legend.position = "top",                       # Posiziona la legenda in alto
+    legend.direction = "horizontal",               # Allinea la legenda in orizzontale
+    legend.text = element_text(size = 8),          # Riduce la dimensione del testo della legenda
+    legend.key.height = unit(0.2, "cm"),           # Riduce l'altezza delle chiavi della legenda
+    legend.key.width = unit(0.5, "cm"),              # Riduce la larghezza delle chiavi della legenda
+    legend.box.margin = margin(-2, 5, -5, 0),            # Riduce i margini attorno alla legenda (rimuove spazio bianco sotto)
+    legend.margin = margin(0, 0, -10, 0),                # Riduce lo spazio tra legenda e grafico
+    legend.title = element_blank()             # Rimuove il titolo della legenda
+    # plot.margin = margin(5, -5, 5, -5)                     # Riduce il margine superiore attorno al grafico
+  )
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(log(GDPdeflated[1, b:(T)]),
+            log(GDPdeflated[2, b:(T)]),
+            log(GDPdeflated[3, b:(T)])),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+# Creare il grafico per "Gini Income"
+p3 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "GDP Deflated", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(log(GDPdeflated[, b:T])) * 0.995, ymax = max(log(GDPdeflated[, b:T])) * 1.005,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(Bond_ine[1, b:(T)],
+            Bond_ine[2, b:(T)],
+            Bond_ine[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+# Creare il grafico per "Gini Income"
+p4 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Bonds inequality", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(Bond_ine[, b:T]) * 0.95, ymax = max(Bond_ine[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(Dep_ineq[1, b:(T)],
+            Dep_ineq[2, b:(T)],
+            Dep_ineq[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+# Creare il grafico per "Gini Income"
+p5 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Deposits inequality", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(Dep_ineq[, b:T]) * 0.95, ymax = max(Dep_ineq[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(Fin_ineq[1, b:(T)]*incremental,
+            Fin_ineq[2, b:(T)]*incremental,
+            Fin_ineq[3, b:(T)]*incremental),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+# Creare il grafico per "Gini Income"
+p6 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Financial rents inequality", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(Fin_ineq[, b:T]*incremental) * 0.95, ymax = max(Fin_ineq[, b:T]*incremental) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(Lab_ineq_index[1, b:(T)]*30,
+            Lab_ineq_index[2, b:(T)]*30,
+            Lab_ineq_index[3, b:(T)]*30),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+# Creare il grafico per "Gini Income"
+p7 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Labor inequality", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(Lab_ineq_index[, b:T]*30) * 0.95, ymax = max(Lab_ineq_index[, b:T]*30) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+number=1
+data <- data.frame(
+  time = rep(time, 4),  # Tre gruppi (linee) per Gini Income
+  value = c(wagesha[number,b:T],banksh[number,b:T],indsh[number,b:T],financialshare[number,b:T]),
+  group = rep(c("Group 1", "Group 2", "Group 3","Group 4"), each = length(time))
+)
+
+p8 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Income shares", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  annotate("rect", xmin = shock, xmax = T, ymin = min(wagesha[number,b:T],banksh[number,b:T],indsh[number,b:T],financialshare[number,b:T]) * 0.95, ymax = max(wagesha[number,b:T],banksh[number,b:T],indsh[number,b:T],financialshare[number,b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(debpub_pil[1, b:(T)],
+            debpub_pil[2, b:(T)],
+            debpub_pil[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+p9 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Public debt-to-GDP ratio", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(debpub_pil[, b:T]) * 0.95, ymax = max(debpub_pil[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(B_Vhh[1, b:(T)],
+            B_Vhh[2, b:(T)],
+            B_Vhh[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+p10 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Total bonds-to-wealth ratio", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(B_Vhh[, b:T]) * 0.95, ymax = max(B_Vhh[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(Div_inequality_index[1, b:(T)]*incremental,
+            Div_inequality_index[2, b:(T)]*incremental,
+            Div_inequality_index[3, b:(T)]*incremental),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+p11 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Dividends Equity inequality", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(Div_inequality_index[, b:T]*incremental) * 0.95, ymax = max(Div_inequality_index[, b:T]*incremental) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(Equity_inequality_index[1, b:(T)],
+            Equity_inequality_index[2, b:(T)],
+            Equity_inequality_index[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+p12 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Equity inequality", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(Equity_inequality_index[, b:T]) * 0.95, ymax = max(Equity_inequality_index[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(E_Vhh[1, b:(T)],
+            E_Vhh[2, b:(T)],
+            E_Vhh[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+p13 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Total equity-to-wealth ratio", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(E_Vhh[, b:T]) * 0.95, ymax = max(E_Vhh[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(price_equity[1, b:(T)],
+            price_equity[2, b:(T)],
+            price_equity[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+p14 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Price equity", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(price_equity[, b:T]) * 0.95, ymax = max(price_equity[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+data <- data.frame(
+  time = rep(time, 3),  # Tre gruppi (linee) per Gini Income
+  value = c(price_bond[1, b:(T)],
+            price_bond[2, b:(T)],
+            price_bond[3, b:(T)]),
+  group = rep(c("Group 1", "Group 2", "Group 3"), each = length(time))
+)
+
+p15 <- ggplot(data, aes(x = time, y = value, color = group)) +
+  geom_line(linewidth = 0.7) +  # Usa linewidth al posto di size per le linee
+  labs(title = "Price bond", x = "", y = "", color = "Group", fill = "Group") +  # Titoli e legenda
+  scale_color_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                                "Group 2" = "purple",      # Viola
+                                "Group 3" = "steelblue"))+
+  scale_fill_manual(values = c("Group 1" = "gold",        # Giallo indiano
+                               "Group 2" = "purple",      # Viola
+                               "Group 3" = "steelblue"))+    # Fucsia
+  annotate("rect", xmin = shock, xmax = T, ymin = min(price_bond[, b:T]) * 0.95, ymax = max(Div_inequality_index[, b:T]) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge la zona d'ombra per lo shock
+  theme_classic()+
+  theme(
+    legend.position = "none",  # Rimuove la legenda
+    plot.title = element_text(hjust = 0.5)  # Centra il titolo
+  )
+
+
+# Calcola il fattore di scala per avvicinare Equity e Bond
+scale_factor_equity <- max(price_equity[, b:T]) / max(price_bond[, b:T])
+
+# Crea il dataframe combinato
+data_combined <- data.frame(
+  time = rep(time, 6),  # Ripete il tempo per tutti i gruppi
+  value = c(price_equity[1, b:(T)],
+            price_equity[2, b:(T)],
+            price_equity[3, b:(T)],
+            price_bond[1, b:(T)] * scale_factor_equity*0.6,  # Bond scalato
+            price_bond[2, b:(T)] * scale_factor_equity*0.6,
+            price_bond[3, b:(T)] * scale_factor_equity*0.6),
+  group = rep(c("Equity Group 1", "Equity Group 2", "Equity Group 3",
+                "Bond Group 1", "Bond Group 2", "Bond Group 3"), each = length(time)),
+  type = rep(c(rep("Equity", 3), rep("Bond", 3)), each = length(time))  # Colonna che distingue Equity e Bond
+)
+
+# Crea il grafico combinato
+p_combined <- ggplot(data_combined, aes(x = time, y = value, color = group)) +
+  geom_line(aes(linetype = type), linewidth = 0.7) +  # Linee diverse per Equity e Bond
+  labs(title = "Assets prices", x = "", 
+       y = "Equity Price") +  # Titolo della legenda per Type
+  scale_color_manual(values = c("Equity Group 1" = "gold",
+                                "Equity Group 2" = "purple",
+                                "Equity Group 3" = "steelblue",
+                                "Bond Group 1" = "orange",
+                                "Bond Group 2" = "green",
+                                "Bond Group 3" = "red")) +
+  scale_fill_manual(values = c("Equity Group 1" = "gold",
+                               "Equity Group 2" = "purple",
+                               "Equity Group 3" = "steelblue",
+                               "Bond Group 1" = "orange",
+                               "Bond Group 2" = "green",
+                               "Bond Group 3" = "red")) +
+  scale_y_continuous(
+    name = "Equity Price", 
+    limits = c(min(data_combined$value) * 0.9, max(data_combined$value) * 1.05),  # Riduce lo spazio sotto
+    sec.axis = sec_axis(~ . / scale_factor_equity, name = "Bond Price")  # Trasformazione inversa per Bond
+  ) +
+  annotate("rect", xmin = shock, xmax = T, 
+           ymin = min(data_combined$value) * 0.9, 
+           ymax = max(data_combined$value) * 1.05,
+           alpha = 0.06, fill = "slateblue") +  # Aggiunge zona d'ombra per lo shock
+  theme_classic() +
+  theme(
+    legend.position = "none", 
+    plot.title = element_text(hjust = 0.5),  # Centra il titolo
+    axis.title.y.right = element_text(color = "red"),  # Colore per asse secondario
+    axis.title.y.left = element_text(color = "blue")   # Colore per asse primario
+  ) +
+  guides(color = "none", fill = "none")  # Rimuove la legenda per Group
+
+
+
+p1 <- p1 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p2 <- p2 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p3 <- p3 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p4 <- p4 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p5 <- p5 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p6 <- p6 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p7 <- p7 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p8 <- p8 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p9 <- p9 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p10 <- p10 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p11 <- p11 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p12 <- p12 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p13 <- p13 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p14 <- p14 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+p15 <- p15 + theme(plot.title = element_text(hjust = 0.5, size = 10))
+print(plot_grid(p1,p2,p3,p4,p5,p12,p6,p11,p14,ncol=3,nrow=3))
+
+
